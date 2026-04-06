@@ -1174,12 +1174,6 @@ function App() {
           </>
         ) : (
           <>
-            <div className="rounded-xl border border-amber-300/40 bg-amber-500/10 p-3">
-              <Button className="h-12 w-full text-base font-black" onClick={startFreshRoom}>
-                开启新房间
-              </Button>
-            </div>
-
             <Card className="overflow-hidden border-amber-300/30 bg-gradient-to-br from-amber-500/20 via-background to-rose-500/10">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center justify-between">
@@ -1528,6 +1522,14 @@ function App() {
                 </Button>
               </div>
             )}
+            
+            <div className="pt-6 pb-2">
+              <div className="rounded-xl border border-amber-300/40 bg-amber-500/10 p-3">
+                <Button className="h-12 w-full text-base font-black" onClick={startFreshRoom}>
+                  开启新房间
+                </Button>
+              </div>
+            </div>
           </>
         )}
 
