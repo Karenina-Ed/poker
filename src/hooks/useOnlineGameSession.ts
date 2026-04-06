@@ -48,8 +48,8 @@ export function useOnlineGameSession() {
             });
           }
         }
-      } catch (err) {
-        console.error('Init error:', err);
+      } catch (error) {
+        console.error('Init error:', error);
         setError('初始化失败，请检查网络连接');
       } finally {
         setIsLoaded(true);
@@ -88,7 +88,7 @@ export function useOnlineGameSession() {
       });
 
       return newSession;
-    } catch (err) {
+    } catch {
       setError('创建游戏失败');
       return null;
     } finally {
@@ -120,7 +120,7 @@ export function useOnlineGameSession() {
         return session;
       }
       throw new Error('游戏不存在');
-    } catch (err) {
+    } catch {
       setError('加入游戏失败，请检查访问码');
       return null;
     } finally {
@@ -148,7 +148,7 @@ export function useOnlineGameSession() {
         return session;
       }
       throw new Error('游戏不存在');
-    } catch (err) {
+    } catch {
       setError('加载游戏失败');
       return null;
     } finally {
@@ -174,7 +174,7 @@ export function useOnlineGameSession() {
         return true;
       }
       throw new Error('删除失败');
-    } catch (err) {
+    } catch {
       setError('删除游戏失败');
       return false;
     } finally {
@@ -195,7 +195,7 @@ export function useOnlineGameSession() {
           prev.map((s) => (s.id === currentSession.id ? updatedSession : s))
         );
       }
-    } catch (err) {
+      } catch {
       setError('结束游戏失败');
     } finally {
       setIsLoading(false);
@@ -218,7 +218,7 @@ export function useOnlineGameSession() {
           return player;
         }
         throw new Error('添加玩家失败');
-      } catch (err) {
+      } catch {
         setError('添加玩家失败');
         return null;
       } finally {
@@ -242,7 +242,7 @@ export function useOnlineGameSession() {
           };
           setCurrentSession(updatedSession);
         }
-      } catch (err) {
+      } catch {
         setError('删除玩家失败');
       } finally {
         setIsLoading(false);
@@ -267,7 +267,7 @@ export function useOnlineGameSession() {
           };
           setCurrentSession(updatedSession);
         }
-      } catch (err) {
+      } catch {
         setError('更新玩家名称失败');
       } finally {
         setIsLoading(false);
@@ -304,7 +304,7 @@ export function useOnlineGameSession() {
           };
           setCurrentSession(updatedSession);
         }
-      } catch (err) {
+      } catch {
         setError('添加买入失败');
       } finally {
         setIsLoading(false);
@@ -332,7 +332,7 @@ export function useOnlineGameSession() {
           };
           setCurrentSession(updatedSession);
         }
-      } catch (err) {
+      } catch {
         setError('撤销买入失败');
       } finally {
         setIsLoading(false);
@@ -365,7 +365,7 @@ export function useOnlineGameSession() {
           };
           setCurrentSession(updatedSession);
         }
-      } catch (err) {
+        } catch {
         setError('结算失败');
       } finally {
         setIsLoading(false);
@@ -390,7 +390,7 @@ export function useOnlineGameSession() {
           };
           setCurrentSession(updatedSession);
         }
-      } catch (err) {
+      } catch {
         setError('取消结算失败');
       } finally {
         setIsLoading(false);
@@ -413,7 +413,7 @@ export function useOnlineGameSession() {
         players: [],
       };
       setCurrentSession(updatedSession);
-    } catch (err) {
+    } catch {
       setError('重置游戏失败');
     } finally {
       setIsLoading(false);

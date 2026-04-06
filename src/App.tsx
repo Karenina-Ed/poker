@@ -1,30 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { HistoryStatsPanel } from './components/HistoryStatsPanel';
 import { Input } from '@/components/ui/input';
+import { LedgerEntriesPanel } from './components/LedgerEntriesPanel';
+import { RoomMembersPanel } from './components/RoomMembersPanel';
+import { SettlementPanel } from './components/SettlementPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from 'recharts';
 import { supabase } from '@/lib/supabase';
 import {
-  Award,
   CheckCircle2,
   Clock3,
   Crown,
   Medal,
   QrCode,
   ShieldCheck,
-  Trophy,
-  Users,
   Wallet,
   XCircle,
 } from 'lucide-react';
@@ -95,6 +86,7 @@ interface HistoryGame {
 const STORAGE_ROOM = 'poker-redesign-room-v1';
 const STORAGE_HISTORY = 'poker-redesign-history-v1';
 const ROOM_STATE_PLAYER = '__ROOM_STATE__';
+const PERSIST_DEBOUNCE_MS = 400;
 const DEFAULT_SETTINGS: RoomSettings = {
   smallBlind: 1,
   bigBlind: 2,
@@ -116,7 +108,6 @@ const createId = () =>
     : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
 const createInviteCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
-
 const sum = (values: number[]) => values.reduce((acc, value) => acc + value, 0);
 
 const getPlayerTotalBuyIn = (player: PlayerSeat) => sum(player.buyIns);
@@ -423,6 +414,9 @@ function App() {
   const [copied, setCopied] = useState(false);
   const tabIdRef = useRef(createId());
   const channelRef = useRef<BroadcastChannel | null>(null);
+  const persistTimerRef = useRef<number | null>(null);
+  const lastPersistedRoomRef = useRef<string | null>(null);
+  const lastPersistedHistoryRef = useRef<string | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -441,6 +435,7 @@ function App() {
           if (parsed) {
             if (!inviteCodeFromUrl || parsed.inviteCode.toUpperCase() === inviteCodeFromUrl) {
               resolvedRoom = parsed;
+              lastPersistedRoomRef.current = cachedRoom;
             }
           } else {
             localStorage.removeItem(STORAGE_ROOM);
@@ -453,6 +448,7 @@ function App() {
       if (cachedHistory) {
         try {
           resolvedHistory = normalizeHistory(JSON.parse(cachedHistory));
+          lastPersistedHistoryRef.current = cachedHistory;
         } catch {
           localStorage.removeItem(STORAGE_HISTORY);
         }
@@ -504,20 +500,48 @@ function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_ROOM, JSON.stringify(room));
-    localStorage.setItem(STORAGE_HISTORY, JSON.stringify(history));
-
-    if (room?.cloudSessionId) {
-      void saveRoomStateToCloud(room, history);
+    if (persistTimerRef.current !== null) {
+      window.clearTimeout(persistTimerRef.current);
     }
 
-    if (channelRef.current) {
-      channelRef.current.postMessage({
-        sender: tabIdRef.current,
-        room,
-        history,
-      });
-    }
+    persistTimerRef.current = window.setTimeout(() => {
+      const nextRoom = JSON.stringify(room);
+      const nextHistory = JSON.stringify(history);
+      const roomChanged = nextRoom !== lastPersistedRoomRef.current;
+      const historyChanged = nextHistory !== lastPersistedHistoryRef.current;
+
+      if (!roomChanged && !historyChanged) {
+        return;
+      }
+
+      if (roomChanged) {
+        localStorage.setItem(STORAGE_ROOM, nextRoom);
+        lastPersistedRoomRef.current = nextRoom;
+      }
+
+      if (historyChanged) {
+        localStorage.setItem(STORAGE_HISTORY, nextHistory);
+        lastPersistedHistoryRef.current = nextHistory;
+      }
+
+      if (room?.cloudSessionId) {
+        void saveRoomStateToCloud(room, history);
+      }
+
+      if (channelRef.current) {
+        channelRef.current.postMessage({
+          sender: tabIdRef.current,
+          room,
+          history,
+        });
+      }
+    }, PERSIST_DEBOUNCE_MS);
+
+    return () => {
+      if (persistTimerRef.current !== null) {
+        window.clearTimeout(persistTimerRef.current);
+      }
+    };
   }, [room, history]);
 
   const actor = useMemo(
@@ -553,6 +577,10 @@ function App() {
   }, [room]);
 
   const transferPlan = useMemo(() => computeTransfers(pnlMap), [pnlMap]);
+  const pendingLedgerCount = useMemo(
+    () => (room ? room.ledger.filter((item) => item.status === 'pending').length : 0),
+    [room]
+  );
 
   const roomRankingRows = useMemo(() => {
     if (!room) return [] as Array<{
@@ -574,39 +602,82 @@ function App() {
       .sort((a, b) => b.profit - a.profit);
   }, [room]);
 
+  const settlementRows = useMemo(() => {
+    if (!room) {
+      return [] as Array<{
+        id: string;
+        nickname: string;
+        leftEarly: boolean;
+        buyInTotal: number;
+        inputValue: number | string;
+        profit: number;
+      }>;
+    }
+
+    return room.players.map((player) => ({
+      id: player.id,
+      nickname: player.nickname,
+      leftEarly: player.leftEarly,
+      buyInTotal: getPlayerTotalBuyIn(player),
+      inputValue: player.leftEarly ? player.cashOutChips ?? 0 : player.finalChips ?? '',
+      profit: getProfitCurrency(player, room.settings.chipsPerCurrency),
+    }));
+  }, [room]);
+
   const rankingRows = useMemo(() => {
-    const aggregate = new Map<string, number[]>();
+    const aggregate = new Map<
+      string,
+      {
+        pnls: number[];
+        totalHours: number;
+        bigBlindSum: number;
+        games: number;
+      }
+    >();
+
     history.forEach((game) => {
+      const duration = Math.max((game.closedAt - game.startedAt) / (1000 * 60 * 60), 0.1);
+
       Object.entries(game.pnlByPlayer).forEach(([name, pnl]) => {
-        if (!aggregate.has(name)) aggregate.set(name, []);
-        aggregate.get(name)?.push(pnl);
+        if (!aggregate.has(name)) {
+          aggregate.set(name, {
+            pnls: [],
+            totalHours: 0,
+            bigBlindSum: 0,
+            games: 0,
+          });
+        }
+
+        const entry = aggregate.get(name);
+        if (!entry) return;
+
+        entry.pnls.push(pnl);
+        entry.totalHours += duration;
+        entry.bigBlindSum += game.bigBlind;
+        entry.games += 1;
       });
     });
 
     return Array.from(aggregate.entries())
-      .map(([name, pnls]) => {
-        const total = round2(sum(pnls));
-        const avg = round2(total / pnls.length);
+      .map(([name, entry]) => {
+        const total = round2(sum(entry.pnls));
+        const avg = round2(total / entry.pnls.length);
         let peak = 0;
         let running = 0;
         let maxDrawdown = 0;
-        pnls.forEach((value) => {
+        entry.pnls.forEach((value) => {
           running += value;
           peak = Math.max(peak, running);
           maxDrawdown = Math.min(maxDrawdown, running - peak);
         });
 
-        const games = history.filter((item) => item.pnlByPlayer[name] !== undefined);
-        const totalHours = games.reduce((hours, item) => {
-          const duration = (item.closedAt - item.startedAt) / (1000 * 60 * 60);
-          return hours + Math.max(duration, 0.1);
-        }, 0);
-        const avgBigBlind = games.reduce((acc, item) => acc + item.bigBlind, 0) / Math.max(games.length, 1);
-        const bbPerHour = avgBigBlind > 0 ? round2(total / avgBigBlind / Math.max(totalHours, 0.1)) : 0;
+        const avgBigBlind = entry.bigBlindSum / Math.max(entry.games, 1);
+        const bbPerHour =
+          avgBigBlind > 0 ? round2(total / avgBigBlind / Math.max(entry.totalHours, 0.1)) : 0;
 
         return {
           name,
-          games: pnls.length,
+          games: entry.pnls.length,
           total,
           avg,
           bbPerHour,
@@ -909,6 +980,27 @@ function App() {
     window.setTimeout(() => setCopied(false), 1500);
   };
 
+  const handleSwitchActor = useCallback((nextActorId: string) => {
+    setActorId(nextActorId);
+  }, []);
+
+  const handlePromoteBookkeeper = useCallback(
+    (playerId: string) => {
+      if (!room) return;
+      setRoom({
+        ...room,
+        players: room.players.map((item) =>
+          item.id === playerId ? { ...item, role: 'bookkeeper' as Role } : item
+        ),
+      });
+    },
+    [room]
+  );
+
+  const handleReconcileModeChange = useCallback((value: ReconcileMode) => {
+    setReconcileMode(value);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background text-foreground pb-20 md:pb-6">
       <header className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur">
@@ -998,6 +1090,22 @@ function App() {
                 )}
               </CardContent>
             </Card>
+
+            <div className="pt-8">
+              <Button 
+                variant="destructive" 
+                className="w-full mt-4 bg-red-950/40 hover:bg-red-900/60 border border-red-900/50 text-red-200" 
+                onClick={() => {
+                  if (confirm('确认清除本地所有历史缓存吗？')) {
+                    localStorage.removeItem(STORAGE_HISTORY);
+                    localStorage.removeItem(STORAGE_ROOM);
+                    setHistory([]);
+                  }
+                }}
+              >
+                重建应用 (清除所有本地统计缓存)
+              </Button>
+            </div>
           </>
         ) : (
           <>
@@ -1018,57 +1126,96 @@ function App() {
                   <p className="text-sm text-muted-foreground">暂无排行数据</p>
                 ) : (
                   <>
-                    <div className="rounded-2xl border border-amber-300/40 bg-amber-400/10 p-5">
-                      <div className="mb-2 flex items-center gap-2">
-                        <Crown className="h-6 w-6 text-amber-300" />
-                        <p className="text-xs tracking-[0.2em] text-amber-200">TOP 1</p>
-                      </div>
-                      <p className="truncate text-3xl font-black text-white md:text-4xl">
-                        {roomRankingRows[0].name}
-                      </p>
-                      <p
-                        className={`mt-2 text-4xl font-black tracking-tight md:text-5xl ${
-                          roomRankingRows[0].profit >= 0 ? 'text-green-400' : 'text-red-400'
-                        }`}
-                      >
-                        {formatMoney(roomRankingRows[0].profit)}
-                      </p>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        总买入 {roomRankingRows[0].totalBuyIn}
-                        {roomRankingRows[0].leftEarly ? ' · 已中途离桌' : ''}
-                      </p>
-                    </div>
-
-                    <div className="grid gap-2">
-                      {roomRankingRows.map((row, index) => (
-                        <div
-                          key={`room-rank-${row.id}`}
-                          className="flex items-center justify-between rounded-xl border border-border/70 bg-card/70 px-4 py-3"
-                        >
-                          <div className="flex min-w-0 items-center gap-3">
-                            <div
-                              className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-black ${
-                                index === 0
-                                  ? 'bg-amber-300/30 text-amber-100'
-                                  : index === 1
-                                    ? 'bg-slate-300/20 text-slate-100'
-                                    : index === 2
-                                      ? 'bg-orange-400/25 text-orange-100'
-                                      : 'bg-muted text-muted-foreground'
-                              }`}
-                            >
-                              {index + 1}
+                    <div className="flex flex-col gap-6 w-full">
+                      {/* 炫酷领奖台 (Top 3) */}
+                      {roomRankingRows.length > 0 && (
+                        <div className="flex items-end justify-center h-[200px] mt-6 gap-2 w-full px-2">
+                          {/* Rank 2 (Left) */}
+                          {roomRankingRows[1] && (
+                            <div className="relative flex flex-col items-center justify-end w-[30%] animate-in slide-in-from-bottom-8 duration-700">
+                              <div className="absolute -top-16 flex flex-col items-center z-10 animate-bounce" style={{ animationDelay: '0.1s', animationDuration: '2.5s' }}>
+                                <Medal className="w-8 h-8 text-slate-300 drop-shadow-md mb-1" />
+                                <span className="font-bold text-white text-xs sm:text-sm truncate w-full max-w-[80px] text-center">{roomRankingRows[1].name}</span>
+                                <span className={`text-xs sm:text-sm font-black tracking-tighter ${roomRankingRows[1].profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                  {formatMoney(roomRankingRows[1].profit)}
+                                </span>
+                              </div>
+                              <div className="w-full bg-gradient-to-t from-slate-800/80 to-slate-500/80 rounded-t-lg h-24 border-t-2 border-slate-400 flex pt-2 justify-center shadow-[0_0_20px_rgba(148,163,184,0.2)]">
+                                <span className="text-4xl font-black text-slate-300/80 drop-shadow-md">2</span>
+                              </div>
                             </div>
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-white">{row.name}</p>
-                              <p className="text-xs text-muted-foreground">买入 {row.totalBuyIn}</p>
+                          )}
+
+                          {/* Rank 1 (Center) */}
+                          <div className="relative flex flex-col items-center justify-end w-[36%] z-20 animate-in slide-in-from-bottom-12 duration-1000">
+                            <div className="absolute -top-20 flex flex-col items-center z-20 animate-bounce" style={{ animationDuration: '2s' }}>
+                              <Crown className="w-12 h-12 text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.8)] mb-1" />
+                              <span className="font-black text-amber-100 text-sm sm:text-base truncate w-full max-w-[100px] text-center drop-shadow-lg">{roomRankingRows[0].name}</span>
+                              <span className={`text-sm sm:text-lg font-black tracking-tighter drop-shadow-md ${roomRankingRows[0].profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                {formatMoney(roomRankingRows[0].profit)}
+                              </span>
+                            </div>
+                            <div className="w-full bg-gradient-to-t from-amber-700/80 to-amber-500/80 rounded-t-xl h-32 border-t-[3px] border-amber-300 flex pt-2 justify-center shadow-[0_0_30px_rgba(251,191,36,0.4)] overflow-hidden relative group">
+                              <span className="text-5xl font-black text-amber-200/90 drop-shadow-xl group-hover:scale-110 transition-transform">1</span>
                             </div>
                           </div>
-                          <p className={`text-2xl font-black ${row.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {formatMoney(row.profit)}
-                          </p>
+
+                          {/* Rank 3 (Right) */}
+                          {roomRankingRows[2] && (
+                            <div className="relative flex flex-col items-center justify-end w-[30%] animate-in slide-in-from-bottom-4 duration-500">
+                              <div className="absolute -top-14 flex flex-col items-center z-10 animate-bounce" style={{ animationDelay: '0.2s', animationDuration: '2.2s' }}>
+                                <Medal className="w-7 h-7 text-orange-400 drop-shadow-md mb-1" />
+                                <span className="font-bold text-white text-xs sm:text-sm truncate w-full max-w-[80px] text-center">{roomRankingRows[2].name}</span>
+                                <span className={`text-xs sm:text-sm font-black tracking-tighter ${roomRankingRows[2].profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                  {formatMoney(roomRankingRows[2].profit)}
+                                </span>
+                              </div>
+                              <div className="w-full bg-gradient-to-t from-orange-900/80 to-orange-600/80 rounded-t-lg h-20 border-t-2 border-orange-400 flex pt-2 justify-center shadow-[0_0_15px_rgba(251,146,60,0.2)]">
+                                <span className="text-3xl font-black text-orange-300/80 drop-shadow-md">3</span>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      ))}
+                      )}
+
+                      {/* Remaining Ranks List */}
+                      {roomRankingRows.length > 3 && (
+                        <div className="grid gap-3">
+                          {roomRankingRows.slice(3).map((row, index) => (
+                            <div
+                              key={`room-rank-${row.id}`}
+                              className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/[0.03] px-5 py-4 backdrop-blur-sm transition-all hover:scale-[1.02] hover:bg-white/10 hover:shadow-lg animate-in fade-in slide-in-from-bottom-2"
+                              style={{ animationDelay: `${(index + 1) * 100}ms` }}
+                            >
+                              <div className="flex min-w-0 items-center justify-between sm:justify-start gap-4">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-sm font-black text-white/50 shadow-inner">
+                                  {index + 4}
+                                </div>
+                                <div className="min-w-0 flex flex-col items-start gap-1">
+                                  <p className="truncate text-base font-bold text-slate-200 group-hover:text-white transition-colors">
+                                    {row.name}
+                                  </p>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="h-[20px] px-2 text-[10px] bg-black/20 text-muted-foreground border-white/10 shrink-0">
+                                      买入 {row.totalBuyIn}
+                                    </Badge>
+                                    {row.leftEarly && (
+                                      <Badge variant="destructive" className="h-[20px] px-2 text-[10px] shrink-0">
+                                        已离桌
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right sm:pl-2">
+                                <p className={`text-3xl font-black tabular-nums tracking-tight ${row.profit >= 0 ? 'text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.3)]' : 'text-red-400'}`}>
+                                  {formatMoney(row.profit)}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -1084,65 +1231,16 @@ function App() {
               </TabsList>
 
               <TabsContent value="room" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">成员与权限</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <Input
-                        value={joinNickname}
-                        onChange={(event) => setJoinNickname(event.target.value)}
-                        placeholder="玩家昵称（必填）"
-                        className="h-11"
-                      />
-                      <Button className="h-11" onClick={joinRoom}>
-                        新玩家加入
-                      </Button>
-                    </div>
-
-                    <div className="grid gap-2">
-                      {room.players.map((player) => (
-                        <div
-                          key={player.id}
-                          className="flex items-center justify-between rounded-md border border-border px-3 py-2"
-                        >
-                          <div>
-                            <p className="text-sm font-medium">{player.nickname}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {player.isAnonymous ? '匿名' : '实名'} · {player.role}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant={actorId === player.id ? 'default' : 'outline'}
-                              onClick={() => setActorId(player.id)}
-                            >
-                              切换视角
-                            </Button>
-                            {actor?.role === 'host' && player.role === 'player' && (
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => {
-                                  setRoom({
-                                    ...room,
-                                    players: room.players.map((item) =>
-                                      item.id === player.id ? { ...item, role: 'bookkeeper' } : item
-                                    ),
-                                  });
-                                }}
-                              >
-                                设为记账员
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                  <RoomMembersPanel
+                    players={room.players}
+                    actorId={actorId}
+                    actorRole={actor?.role}
+                    joinNickname={joinNickname}
+                    onJoinNicknameChange={setJoinNickname}
+                    onJoin={joinRoom}
+                    onSwitchActor={handleSwitchActor}
+                    onPromoteBookkeeper={handlePromoteBookkeeper}
+                  />
 
                 <Card>
                   <CardHeader>
@@ -1219,7 +1317,9 @@ function App() {
                       <option value="cashout">中途离桌</option>
                     </select>
                     <Input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={requestedAmount}
                       onChange={(event) => setRequestedAmount(event.target.value)}
                       placeholder={requestedType === 'cashout' ? '输入离桌时筹码折算金额' : '输入买入金额'}
@@ -1234,339 +1334,36 @@ function App() {
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">实时账本</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {room.ledger.length === 0 && (
-                      <p className="text-sm text-muted-foreground">暂无申请记录</p>
-                    )}
-                    {room.ledger.map((entry) => {
-                      const owner = room.players.find((player) => player.id === entry.playerId);
-                      return (
-                        <div
-                          key={entry.id}
-                          className="rounded-md border border-border bg-card/70 p-3"
-                        >
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div>
-                              <p className="text-sm font-semibold">
-                                {owner?.nickname || '未知玩家'} · {entry.type.toUpperCase()}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {new Date(entry.createdAt).toLocaleTimeString('zh-CN')} · 金额 {entry.amount} · 筹码 {entry.chips}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Badge
-                                variant={
-                                  entry.status === 'approved'
-                                    ? 'default'
-                                    : entry.status === 'rejected'
-                                      ? 'destructive'
-                                      : 'secondary'
-                                }
-                              >
-                                {entry.status}
-                              </Badge>
-                              {entry.status === 'pending' && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    className="h-8"
-                                    disabled={!canApprove}
-                                    onClick={() => approveRequest(entry.id, true)}
-                                  >
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-8"
-                                    disabled={!canApprove}
-                                    onClick={() => approveRequest(entry.id, false)}
-                                  >
-                                    Reject
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </CardContent>
-                </Card>
+                  <LedgerEntriesPanel
+                    entries={room.ledger}
+                    players={room.players}
+                    canApprove={canApprove}
+                    onApprove={approveRequest}
+                  />
               </TabsContent>
 
               <TabsContent value="settlement" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">筹码守恒校验</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="grid gap-3 md:grid-cols-3">
-                      <div className="rounded-md border border-border p-3">
-                        <p className="text-xs text-muted-foreground">历史买入总额</p>
-                        <p className="text-lg font-bold">{totalBuyInCurrency}</p>
-                      </div>
-                      <div className="rounded-md border border-border p-3">
-                        <p className="text-xs text-muted-foreground">应有筹码总和</p>
-                        <p className="text-lg font-bold">{totalBuyInChips}</p>
-                      </div>
-                      <div className="rounded-md border border-border p-3">
-                        <p className="text-xs text-muted-foreground">实际筹码总和</p>
-                        <p className="text-lg font-bold">{totalFinalChips}</p>
-                      </div>
-                    </div>
-
-                    <div className="rounded-md border border-border p-3">
-                      <p className="text-sm">
-                        差额: <span className={chipDelta === 0 ? 'text-green-400' : 'text-amber-300'}>{chipDelta}</span>
-                      </p>
-                      {chipDelta !== 0 && (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          系统检测到筹码不守恒，请使用平账选项后再清盘。
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      {room.players.map((player) => (
-                        <div
-                          key={player.id}
-                          className="grid items-center gap-2 rounded-md border border-border p-3 md:grid-cols-[1fr_180px_1fr]"
-                        >
-                          <div>
-                            <p className="text-sm font-semibold">{player.nickname}</p>
-                            <p className="text-xs text-muted-foreground">
-                              买入 {getPlayerTotalBuyIn(player)}
-                              {player.leftEarly ? ' · 已中途离桌(锁定)' : ''}
-                            </p>
-                          </div>
-                          <Input
-                            type="number"
-                            disabled={player.leftEarly}
-                            value={player.leftEarly ? player.cashOutChips ?? 0 : player.finalChips ?? ''}
-                            onChange={(event) =>
-                              setFinalChips(player.id, Number(event.target.value) || 0)
-                            }
-                            placeholder="最终筹码"
-                            className="h-11"
-                          />
-                          <div className="text-right text-sm font-semibold">
-                            盈亏 {formatMoney(getProfitCurrency(player, room.settings.chipsPerCurrency))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <Separator />
-
-                    <div className="grid gap-3 md:grid-cols-4">
-                      <select
-                        className="h-11 rounded-md border border-border bg-background px-3 text-sm"
-                        value={reconcileMode}
-                        onChange={(event) => setReconcileMode(event.target.value as ReconcileMode)}
-                      >
-                        <option value="proportional">按比例分摊差额</option>
-                        <option value="assign">指定某人承担</option>
-                        <option value="reserve">记入公积金</option>
-                      </select>
-                      <select
-                        className="h-11 rounded-md border border-border bg-background px-3 text-sm"
-                        value={assignPlayerId}
-                        onChange={(event) => setAssignPlayerId(event.target.value)}
-                        disabled={reconcileMode !== 'assign'}
-                      >
-                        <option value="">选择承担人</option>
-                        {room.players.map((player) => (
-                          <option key={player.id} value={player.id}>
-                            {player.nickname}
-                          </option>
-                        ))}
-                      </select>
-                      <Button className="h-11" variant="secondary" onClick={reconcile}>
-                        执行平账
-                      </Button>
-                      <Button className="h-11" onClick={closeGame}>
-                        清盘并生成账单
-                      </Button>
-                    </div>
-
-                    <div className="rounded-md border border-border bg-card/60 p-3">
-                      <p className="mb-2 text-sm font-semibold">最优转账路径（最少次数）</p>
-                      {transferPlan.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">暂无转账，可能所有人保本或尚未完成清盘。</p>
-                      ) : (
-                        <div className="space-y-1">
-                          {transferPlan.map((item, index) => (
-                            <p key={`${item.from}-${item.to}-${index}`} className="text-sm">
-                              {item.from} 转给 {item.to} {item.amount}
-                            </p>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                  <SettlementPanel
+                    totalBuyInCurrency={totalBuyInCurrency}
+                    totalBuyInChips={totalBuyInChips}
+                    totalFinalChips={totalFinalChips}
+                    chipDelta={chipDelta}
+                    settlementRows={settlementRows}
+                    reconcileMode={reconcileMode}
+                    assignPlayerId={assignPlayerId}
+                    assignOptions={room.players.map((player) => ({ id: player.id, nickname: player.nickname }))}
+                    transferPlan={transferPlan}
+                    formatMoney={formatMoney}
+                    onSetFinalChips={setFinalChips}
+                    onReconcileModeChange={handleReconcileModeChange}
+                    onAssignPlayerChange={setAssignPlayerId}
+                    onReconcile={reconcile}
+                    onCloseGame={closeGame}
+                  />
               </TabsContent>
 
               <TabsContent value="history" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">长期统计</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {rankingRows.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">暂无历史数据。完成一次清盘后自动生成统计。</p>
-                    ) : (
-                      <>
-                        <div className="rounded-xl border border-border bg-gradient-to-br from-amber-500/15 via-background to-cyan-500/10 p-4">
-                          <div className="mb-3 flex items-center justify-between">
-                            <p className="text-sm font-semibold tracking-wide text-amber-300">累计盈亏榜</p>
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Trophy className="h-3.5 w-3.5 text-amber-300" />
-                              按总盈亏排序
-                            </div>
-                          </div>
-
-                          <div className="grid gap-3 md:grid-cols-3">
-                            {rankingRows.slice(0, 3).map((row, index) => (
-                              <div
-                                key={`podium-${row.name}`}
-                                className={`rounded-xl border p-4 ${
-                                  index === 0
-                                    ? 'border-amber-300/50 bg-amber-400/10'
-                                    : index === 1
-                                      ? 'border-slate-300/40 bg-slate-200/5'
-                                      : 'border-orange-400/40 bg-orange-400/10'
-                                }`}
-                              >
-                                <div className="mb-2 flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    {index === 0 ? (
-                                      <Crown className="h-5 w-5 text-amber-300" />
-                                    ) : index === 1 ? (
-                                      <Medal className="h-5 w-5 text-slate-300" />
-                                    ) : (
-                                      <Award className="h-5 w-5 text-orange-300" />
-                                    )}
-                                    <span className="text-xs font-bold">#{index + 1}</span>
-                                  </div>
-                                  <Badge variant="outline" className="text-[10px]">
-                                    {row.games} 场
-                                  </Badge>
-                                </div>
-                                <p className="truncate text-base font-bold">{row.name}</p>
-                                <p
-                                  className={`mt-2 text-2xl font-black tracking-tight ${
-                                    row.total >= 0 ? 'text-green-400' : 'text-red-400'
-                                  }`}
-                                >
-                                  {formatMoney(row.total)}
-                                </p>
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                  场均 {formatMoney(row.avg)} · BB/h {row.bbPerHour}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-
-                          <div className="mt-3 space-y-2">
-                            {rankingRows.map((row, index) => (
-                              <div
-                                key={`rank-row-${row.name}`}
-                                className="flex items-center justify-between rounded-lg border border-border/70 bg-card/70 px-3 py-2"
-                              >
-                                <div className="flex min-w-0 items-center gap-3">
-                                  <div
-                                    className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-black ${
-                                      index === 0
-                                        ? 'bg-amber-300/25 text-amber-200'
-                                        : index === 1
-                                          ? 'bg-slate-300/20 text-slate-200'
-                                          : index === 2
-                                            ? 'bg-orange-400/25 text-orange-200'
-                                            : 'bg-muted text-muted-foreground'
-                                    }`}
-                                  >
-                                    {index + 1}
-                                  </div>
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-semibold">{row.name}</p>
-                                    <p className="text-xs text-muted-foreground">最大回撤 {row.maxDrawdown}</p>
-                                  </div>
-                                </div>
-                                <p
-                                  className={`text-lg font-black ${
-                                    row.total >= 0 ? 'text-green-400' : 'text-red-400'
-                                  }`}
-                                >
-                                  {formatMoney(row.total)}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b border-border">
-                                <th className="p-2 text-left">玩家</th>
-                                <th className="p-2 text-right">总盈亏</th>
-                                <th className="p-2 text-right">场均</th>
-                                <th className="p-2 text-right">BB/小时</th>
-                                <th className="p-2 text-right">最大回撤</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {rankingRows.map((row) => (
-                                <tr key={row.name} className="border-b border-border/50">
-                                  <td className="p-2">
-                                    <div className="flex items-center gap-2">
-                                      <Users className="h-4 w-4 text-muted-foreground" />
-                                      <span>{row.name}</span>
-                                    </div>
-                                  </td>
-                                  <td className={`p-2 text-right ${row.total >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                    {formatMoney(row.total)}
-                                  </td>
-                                  <td className="p-2 text-right">{formatMoney(row.avg)}</td>
-                                  <td className="p-2 text-right">{row.bbPerHour}</td>
-                                  <td className="p-2 text-right text-red-400">{row.maxDrawdown}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-
-                        <div className="h-64 w-full rounded-md border border-border p-2">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={trendData}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                              <XAxis dataKey="label" />
-                              <YAxis />
-                              <Tooltip />
-                              {rankingRows.slice(0, 4).map((row, index) => (
-                                <Line
-                                  key={row.name}
-                                  type="monotone"
-                                  dataKey={row.name}
-                                  stroke={['#22c55e', '#f59e0b', '#60a5fa', '#f43f5e'][index % 4]}
-                                  strokeWidth={2}
-                                  dot={false}
-                                />
-                              ))}
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
+                  <HistoryStatsPanel rankingRows={rankingRows} trendData={trendData} formatMoney={formatMoney} />
               </TabsContent>
             </Tabs>
 
@@ -1605,7 +1402,7 @@ function App() {
                   <div>
                     <p className="text-xs text-muted-foreground">审批状态</p>
                     <p className="font-semibold">
-                      {room.ledger.filter((item) => item.status === 'pending').length} 笔待审
+                        {pendingLedgerCount} 笔待审
                     </p>
                   </div>
                   <Clock3 className="h-5 w-5 text-amber-300" />
