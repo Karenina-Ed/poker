@@ -20,6 +20,48 @@
 - **后端 & 数据库同步**: [Supabase](https://supabase.com)
 - **部署平台**: [Vercel](https://vercel.com/)
 
+## ☁️ Supabase 数据库配置 (Database Setup)
+
+要使云端房间同步完全工作，你需要前往 Supabase 后台的 **SQL Editor** 中执行下方的建表语句（同时会开启允许所有人读写的 RLS 策略）：
+
+```sql
+-- 创建游戏房间/会话主表
+CREATE TABLE public.game_sessions (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    name text,
+    access_code text NOT NULL,
+    is_active boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+-- 添加访问码索引以供快速查找
+CREATE UNIQUE INDEX idx_game_sessions_access_code ON public.game_sessions(access_code);
+
+-- 创建玩家状态（及云端序列化状态）表
+CREATE TABLE public.players (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    session_id uuid REFERENCES public.game_sessions(id) ON DELETE CASCADE,
+    name text NOT NULL,
+    buy_ins jsonb DEFAULT '[]'::jsonb,
+    cash_out jsonb,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+-- 添加外键与专用标识名称索引
+CREATE INDEX idx_players_session_id ON public.players(session_id);
+CREATE INDEX idx_players_name ON public.players(name);
+
+-- 开启所有表的 RLS (Row-Level Security)
+ALTER TABLE public.game_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.players ENABLE ROW LEVEL SECURITY;
+
+-- 允许所有客户端匿名（anon）进行任意增删改查
+-- 注意：这里为了方便无登录的快速组局而开放了最高读写权限，实际商用需加上更严格的 User Auth 策略
+CREATE POLICY "Allow public all access to game_sessions" ON public.game_sessions FOR ALL USING (true);
+CREATE POLICY "Allow public all access to players" ON public.players FOR ALL USING (true);
+```
+
 ## 🚀 本地开发 (Local Development)
 
 ### 1. 克隆代码 & 安装依赖
