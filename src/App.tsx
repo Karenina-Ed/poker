@@ -9,6 +9,7 @@ import { RoomMembersPanel } from './components/RoomMembersPanel';
 import { SettlementPanel } from './components/SettlementPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 import {
   CheckCircle2,
   Clock3,
@@ -803,11 +804,13 @@ function App() {
     if (!room || !actor) return;
     const amount = Number(requestedAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error('请输入有效金额。');
       setError('请输入有效金额。');
       return;
     }
     if (requestedType !== 'cashout') {
       if (amount < room.settings.minBuyIn || amount > room.settings.maxBuyIn) {
+        toast.error(`买入异常：单笔申请需在 ${room.settings.minBuyIn} - ${room.settings.maxBuyIn} 之间。`);
         setError(`买入需在 ${room.settings.minBuyIn} - ${room.settings.maxBuyIn} 之间。`);
         return;
       }
@@ -832,20 +835,24 @@ function App() {
     if (!room || !canApprove) return;
     const amount = Number(requestedAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error('请输入有效买入金额。');
       setError('请输入有效买入金额。');
       return;
     }
     if (requestedType !== 'buyin') {
+      toast.error('请将类型切换为“买入申请”再使用一键买入功能。');
       setError('请将类型切换为“买入申请”再使用一键买入功能。');
       return;
     }
     if (amount < room.settings.minBuyIn || amount > room.settings.maxBuyIn) {
+      toast.error(`买入异常：单笔数额需在 ${room.settings.minBuyIn} - ${room.settings.maxBuyIn} 之间。`);
       setError(`买入需在 ${room.settings.minBuyIn} - ${room.settings.maxBuyIn} 之间。`);
       return;
     }
 
     const activePlayers = room.players.filter((p) => !p.leftEarly);
     if (activePlayers.length === 0) {
+      toast.error('当前没有任何在桌的玩家。');
       setError('当前没有在桌玩家。');
       return;
     }
@@ -854,6 +861,7 @@ function App() {
       return;
     }
 
+    toast.success(`全员指令成功，已向所有 ${activePlayers.length} 玩家各买入了 ${amount}`);
     const now = Date.now();
     const newActions: LedgerAction[] = [];
     const newPlayers = room.players.map((player) => {
@@ -929,7 +937,7 @@ function App() {
     setRoom(nextRoom);
   };
 
-  const setFinalChips = (playerId: string, chips: number) => {
+  const setFinalChips = (playerId: string, chips: number | string) => {
     if (!room) return;
     setRoom({
       ...room,
@@ -937,7 +945,7 @@ function App() {
         player.id === playerId
           ? {
               ...player,
-              finalChips: Number.isFinite(chips) ? chips : 0,
+              finalChips: chips as any, // Allowing string '' temporarily
             }
           : player
       ),

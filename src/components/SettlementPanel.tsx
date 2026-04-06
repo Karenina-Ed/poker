@@ -37,7 +37,7 @@ interface SettlementPanelProps {
   assignOptions: AssignOption[];
   transferPlan: TransferItem[];
   formatMoney: (value: number) => string;
-  onSetFinalChips: (playerId: string, chips: number) => void;
+  onSetFinalChips: (playerId: string, chips: number | string) => void;
   onReconcileModeChange: (value: ReconcileMode) => void;
   onAssignPlayerChange: (value: string) => void;
   onReconcile: () => void;
@@ -108,7 +108,10 @@ export const SettlementPanel = memo(function SettlementPanel({
                 type="number"
                 disabled={row.leftEarly}
                 value={row.inputValue}
-                onChange={(event) => onSetFinalChips(row.id, Number(event.target.value) || 0)}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  onSetFinalChips(row.id, val === '' ? '' : Number(val));
+                }}
                 placeholder="最终筹码"
                 className="h-11"
               />
