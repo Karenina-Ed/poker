@@ -828,6 +828,63 @@ function App() {
     setError('');
   };
 
+  const applyBuyInToAllPlayers = () => {
+    if (!room || !canApprove) return;
+    const amount = Number(requestedAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError('请输入有效买入金额。');
+      return;
+    }
+    if (requestedType !== 'buyin') {
+      setError('请将类型切换为“买入申请”再使用一键买入功能。');
+      return;
+    }
+    if (amount < room.settings.minBuyIn || amount > room.settings.maxBuyIn) {
+      setError(`买入需在 ${room.settings.minBuyIn} - ${room.settings.maxBuyIn} 之间。`);
+      return;
+    }
+
+    const activePlayers = room.players.filter((p) => !p.leftEarly);
+    if (activePlayers.length === 0) {
+      setError('当前没有在桌玩家。');
+      return;
+    }
+
+    if (!confirm(`确定为所有在桌玩家（共 ${activePlayers.length} 人）每人额外全自动买入 ${amount} 吗？\n这是管理员操作，立即生效且不可撤销。`)) {
+      return;
+    }
+
+    const now = Date.now();
+    const newActions: LedgerAction[] = [];
+    const newPlayers = room.players.map((player) => {
+      if (player.leftEarly) return player;
+      
+      const action: LedgerAction = {
+        id: createId(),
+        type: 'buyin',
+        playerId: player.id,
+        amount,
+        chips: round2(amount * room.settings.chipsPerCurrency),
+        createdAt: now,
+        status: 'approved',
+      };
+      newActions.push(action);
+      
+      return {
+        ...player,
+        buyIns: [...player.buyIns, amount],
+      };
+    });
+
+    setRoom({
+      ...room,
+      players: newPlayers,
+      ledger: [...newActions, ...room.ledger],
+    });
+    setRequestedAmount('');
+    setError('');
+  };
+
   const approveRequest = (requestId: string, approved: boolean) => {
     if (!room || !canApprove) return;
 
@@ -1325,9 +1382,25 @@ function App() {
                       placeholder={requestedType === 'cashout' ? '输入离桌时筹码折算金额' : '输入买入金额'}
                       className="h-11"
                     />
-                    <Button className="h-11" onClick={submitLedgerRequest}>
-                      提交申请
-                    </Button>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button className="h-11 flex-1" onClick={submitLedgerRequest}>
+                        提交申请
+                      </Button>
+                      {canApprove && (
+                        <Button 
+                          variant="outline"
+                          className={`h-11 flex-1 whitespace-nowrap shadow-[0px_0px_10px_rgba(99,102,241,0.1)] border transition-all duration-300 ${
+                            requestedType === 'buyin' 
+                              ? 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 border-indigo-500/30'
+                              : 'bg-muted/20 text-muted-foreground border-transparent opacity-50 cursor-not-allowed'
+                          }`}
+                          onClick={requestedType === 'buyin' ? applyBuyInToAllPlayers : undefined}
+                          title={requestedType === 'buyin' ? '为所有在桌玩家同时买入' : '仅在“买入申请”模式下可用'}
+                        >
+                          ⭐ 一键全员买入
+                        </Button>
+                      )}
+                    </div>
                     <div className="rounded-md border border-border px-3 py-2 text-xs text-muted-foreground">
                       普通玩家仅可提交申请，房主/记账员审批后生效。
                     </div>
