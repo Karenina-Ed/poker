@@ -8,6 +8,7 @@ import { LedgerEntriesPanel } from './components/LedgerEntriesPanel';
 import { RoomMembersPanel } from './components/RoomMembersPanel';
 import { SettlementPanel } from './components/SettlementPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PureRanking } from '@/components/PureRanking';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import {
@@ -1282,11 +1283,12 @@ function App() {
             </Card>
 
             <Tabs value={tab} onValueChange={setTab}>
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="room">房间</TabsTrigger>
                 <TabsTrigger value="ledger">账本</TabsTrigger>
                 <TabsTrigger value="settlement">清盘</TabsTrigger>
                 <TabsTrigger value="history">统计</TabsTrigger>
+                <TabsTrigger value="pure-ranking">巅峰榜</TabsTrigger>
               </TabsList>
 
               <TabsContent value="room" className="space-y-4">
@@ -1439,6 +1441,18 @@ function App() {
 
               <TabsContent value="history" className="space-y-4">
                   <HistoryStatsPanel rankingRows={rankingRows} trendData={trendData} formatMoney={formatMoney} />
+              </TabsContent>
+
+              <TabsContent value="pure-ranking" className="space-y-4">
+                  <div className="flex justify-end p-2">
+                    <a href="/?view=ranking" target="_blank" rel="noreferrer" className="text-sm text-indigo-400 hover:text-indigo-300 underline underline-offset-4 flex items-center gap-1">
+                      <span>独立大屏展示 (将新开页面)</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line>
+                      </svg>
+                    </a>
+                  </div>
+                  <PureRanking />
               </TabsContent>
             </Tabs>
 
