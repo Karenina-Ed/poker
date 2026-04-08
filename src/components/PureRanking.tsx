@@ -63,7 +63,7 @@ export function PureRanking() {
            loadedData = [{
              id: 'legacy-data',
              date: new Date().toISOString().split('T')[0],
-             title: '历史沉淀数据',
+             title: '历史对局数据',
              records: loadedData
            }];
         }
@@ -217,18 +217,18 @@ export function PureRanking() {
               onClick={() => setActiveTab('total')}
               className={`px-4 py-1.5 text-xs font-medium tracking-widest rounded-full transition-all ${activeTab === 'total' ? 'bg-[#ededed] text-[#111] shadow-sm' : 'text-[#888] hover:text-[#ddd]'}`}
             >
-              TOTAL
+              总榜
             </button>
             <button 
               onClick={() => setActiveTab('history')}
               className={`px-4 py-1.5 text-xs font-medium tracking-widest rounded-full transition-all ${activeTab === 'history' ? 'bg-[#ededed] text-[#111] shadow-sm' : 'text-[#888] hover:text-[#ddd]'}`}
             >
-              LOGS
+              单局记录
             </button>
           </div>
         </div>
         <h1 className="text-5xl md:text-[6rem] font-medium tracking-tighter leading-none mt-4 transition-all">
-          {activeTab === 'total' ? 'Leaderboard.' : 'Sessions.'}
+          {activeTab === 'total' ? 'WPT417总榜.' : '单局记录.'}
         </h1>
       </header>
 
@@ -350,7 +350,7 @@ export function PureRanking() {
                  onClick={openNewMatchDialog}
                  className="text-[10px] md:text-xs font-mono uppercase tracking-[0.2em] text-[#999] group-hover:text-[#f5f5f5] transition-colors border-b border-[#333] group-hover:border-[#ededed] pb-1"
                >
-                 Add Session Log
+                 添加对局记录
                </button>
              </div>
           </DialogTrigger>
@@ -433,7 +433,7 @@ export function PureRanking() {
                 className="w-full mt-6 text-[#888] hover:text-[#ededed] hover:bg-[#181818] font-light tracking-wide rounded-xl py-6"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Add Row
+                添加玩家
               </Button>
               
               {errorText && (
