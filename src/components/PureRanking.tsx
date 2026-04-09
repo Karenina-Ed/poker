@@ -253,7 +253,7 @@ export function PureRanking() {
     return (
       <div className="min-h-screen w-full bg-[#111] text-[#f5f5f5] flex items-center justify-center font-sans">
         <div className="text-[#888] font-mono text-sm uppercase tracking-widest animate-pulse">
-          Loading blockchain...
+          加载中...
         </div>
       </div>
     );
@@ -265,25 +265,25 @@ export function PureRanking() {
       <header className="pt-24 pb-8 md:pt-32 md:pb-16 px-6 md:px-12 w-full max-w-5xl mx-auto flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <p className="text-[10px] md:text-xs font-mono uppercase tracking-[0.3em] text-[#888]">
-            Texas Hold'em
+            德州扑克
           </p>
           <div className="bg-[#222] p-1 rounded-full flex gap-1 border border-[#333]">
             <button 
               onClick={() => setActiveTab('total')}
               className={`px-4 py-1.5 text-xs font-medium tracking-widest rounded-full transition-all ${activeTab === 'total' ? 'bg-[#ededed] text-[#111] shadow-sm' : 'text-[#888] hover:text-[#ddd]'}`}
             >
-              TOTAL
+              总榜
             </button>
             <button 
               onClick={() => setActiveTab('history')}
               className={`px-4 py-1.5 text-xs font-medium tracking-widest rounded-full transition-all ${activeTab === 'history' ? 'bg-[#ededed] text-[#111] shadow-sm' : 'text-[#888] hover:text-[#ddd]'}`}
             >
-              LOGS
+              记录
             </button>
           </div>
         </div>
         <h1 className="text-5xl md:text-[6rem] font-medium tracking-tighter leading-none mt-4 transition-all">
-          {activeTab === 'total' ? 'Leaderboard.' : 'Sessions.'}
+          {activeTab === 'total' ? '全服总榜.' : '对局历史.'}
         </h1>
       </header>
 
@@ -294,7 +294,7 @@ export function PureRanking() {
           <div className="flex flex-col border-t border-[#333]">
              {overallRanking.length === 0 ? (
                <div className="py-20 text-[#888] font-mono text-sm uppercase tracking-widest text-center">
-                 No Data Found.
+                 暂无历史数据.
                </div>
              ) : (
                 overallRanking.map((player, index) => {
@@ -362,7 +362,7 @@ export function PureRanking() {
           <div className="flex flex-col border-t border-[#333] space-y-6 pt-6">
              {matches.length === 0 ? (
                <div className="py-20 text-[#888] font-mono text-sm uppercase tracking-widest text-center">
-                 No Sessions Recorded.
+                 暂无任何对局记录.
                </div>
              ) : (
                matches.map((m, m_idx) => {
@@ -378,10 +378,10 @@ export function PureRanking() {
                      <div className="flex items-start justify-between border-b border-[#222] pb-6 mb-6">
                        <div>
                          <h3 className="text-2xl tracking-tight font-medium text-[#eee]">
-                           {m.title || 'Game Session'}
+                           {m.title || '德扑对局'}
                            {!validBalance && m.id !== 'legacy-data' && (
                              <span className="ml-3 text-[10px] uppercase font-mono tracking-widest bg-red-950/40 text-red-400 px-2 py-1 rounded-full border border-red-900/50 align-middle">
-                               Unbalanced
+                               未平账
                              </span>
                            )}
                          </h3>
@@ -435,7 +435,7 @@ export function PureRanking() {
                  onClick={openNewMatchDialog}
                  className="text-[10px] md:text-xs font-mono uppercase tracking-[0.2em] text-[#999] group-hover:text-[#f5f5f5] transition-colors border-b border-[#333] group-hover:border-[#ededed] pb-1"
                >
-                 Add Session Log
+                 录入新对局
                </button>
              </div>
           </DialogTrigger>
@@ -443,25 +443,25 @@ export function PureRanking() {
           <DialogContent className="sm:max-w-2xl bg-[#111] border border-[#222] text-[#f5f5f5] shadow-2xl rounded-2xl p-8 max-h-[90vh] overflow-y-auto">
             <DialogHeader className="mb-6">
               <DialogTitle className="text-3xl font-medium tracking-tight">
-                {editingParams.id ? 'Edit Session' : 'New Session'}
+                {editingParams.id ? '编辑对局' : '录入新对局'}
               </DialogTitle>
               <div className="text-sm text-[#888] font-light mt-1">
-                Enter game details and player performance.
+                填写这局游戏的基础信息和每个玩家的战绩流水.
               </div>
             </DialogHeader>
 
             <div className="grid grid-cols-2 gap-4 pb-6 border-b border-[#222]">
                <div>
-                  <label className="text-[10px] font-mono uppercase tracking-widest text-[#666] mb-2 block">Session Title</label>
+                  <label className="text-[10px] font-mono uppercase tracking-widest text-[#666] mb-2 block">对局标题</label>
                   <Input 
                     value={editingParams.title}
                     onChange={e => setEditingParams({...editingParams, title: e.target.value})}
-                    placeholder="Friday Night Poker"
+                    placeholder="周五晚局"
                     className="bg-[#181818] border-[#333] h-12 text-[#eee] focus-visible:ring-0 focus-visible:border-white transition-colors"
                   />
                </div>
                <div>
-                  <label className="text-[10px] font-mono uppercase tracking-widest text-[#666] mb-2 block">Date</label>
+                  <label className="text-[10px] font-mono uppercase tracking-widest text-[#666] mb-2 block">日期</label>
                   <Input
                     type="date"
                     value={editingParams.date}
@@ -473,9 +473,9 @@ export function PureRanking() {
             
             <div className="py-4 space-y-2">
               <div className="flex items-center justify-between mb-4">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-[#666]">Player Balance</span>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-[#666]">全员账单合计</span>
                 <span className={`text-xs font-mono tabular-nums ${Math.abs(editingRecords.reduce((a,c) => a + (Number(c.score)||0), 0)) > 0.01 ? 'text-red-400' : 'text-green-400'}`}>
-                  Sum: {(editingRecords.reduce((a,c) => a + (Number(c.score)||0), 0)).toFixed(1).replace(/\.0$/, '')}
+                  总和: {(editingRecords.reduce((a,c) => a + (Number(c.score)||0), 0)).toFixed(1).replace(/\.0$/, '')}
                 </span>
               </div>
               
@@ -487,7 +487,7 @@ export function PureRanking() {
                   <Input 
                     value={r.name} 
                     onChange={(e) => setEditingRecords(prev => prev.map(p => p.id === r.id ? { ...p, name: e.target.value } : p))} 
-                    placeholder="Name" 
+                    placeholder="昵称" 
                     className="flex-1 bg-[#181818] border-none shadow-none text-lg tracking-tight rounded-none border-b border-[#222] focus-visible:ring-0 focus-visible:border-[#ededed] transition-colors px-4 h-12 text-[#f5f5f5]"
                   />
                   <Input 
@@ -495,7 +495,7 @@ export function PureRanking() {
                     type="number"
                     step="0.1"
                     onChange={(e) => setEditingRecords(prev => prev.map(p => p.id === r.id ? { ...p, score: e.target.value } : p))} 
-                    placeholder="Score" 
+                    placeholder="战绩" 
                     className="w-32 bg-[#181818] border-none shadow-none text-lg tabular-nums rounded-none border-b border-[#222] focus-visible:ring-0 focus-visible:border-[#ededed] transition-colors px-4 h-12 text-right font-mono text-[#f5f5f5]"
                   />
                   <Button 
@@ -518,7 +518,7 @@ export function PureRanking() {
                 className="w-full mt-6 text-[#888] hover:text-[#ededed] hover:bg-[#181818] font-light tracking-wide rounded-xl py-6"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Add Row
+                添加玩家
               </Button>
               
               {errorText && (
@@ -541,7 +541,7 @@ export function PureRanking() {
                 disabled={isSaving} 
                 className="text-sm font-medium tracking-wide bg-[#ededed] text-[#111] px-8 py-3 rounded-full hover:bg-[#ffffff] hover:scale-105 transition-all shadow-xl shadow-black/50 disabled:opacity-50 disabled:hover:scale-100"
               >
-                {isSaving ? 'Saving...' : 'Apply Session'}
+                {isSaving ? '保存中...' : 'Apply Session'}
               </button>
             </div>
           </DialogContent>
@@ -551,24 +551,24 @@ export function PureRanking() {
         <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
            <DialogContent className="sm:max-w-md bg-[#111] border border-[#222] text-[#f5f5f5] shadow-2xl rounded-2xl p-8">
               <DialogHeader className="mb-6">
-                <DialogTitle className="text-2xl font-medium tracking-tight">Edit Profile</DialogTitle>
-                <div className="text-sm text-[#888] font-light mt-1">Set signature for {editingProfileName}</div>
+                <DialogTitle className="text-2xl font-medium tracking-tight">编辑个人资料</DialogTitle>
+                <div className="text-sm text-[#888] font-light mt-1">设置个性签名: {editingProfileName}</div>
               </DialogHeader>
               <div className="space-y-4">
                  <div>
-                    <label className="text-[10px] font-mono uppercase tracking-widest text-[#666] mb-2 block">Signature</label>
+                    <label className="text-[10px] font-mono uppercase tracking-widest text-[#666] mb-2 block">个性签名</label>
                     <Input 
                       value={editingSignature}
                       onChange={e => setEditingSignature(e.target.value)}
-                      placeholder="e.g. All in or fold"
+                      placeholder="例如：赢了会所嫩模..."
                       className="bg-[#181818] border-[#333] h-12 text-[#eee] focus-visible:ring-0 focus-visible:border-white transition-colors"
                       maxLength={100}
                     />
                  </div>
               </div>
               <div className="flex justify-end gap-6 mt-8 pt-6 border-t border-[#222]">
-                <button onClick={() => setIsProfileOpen(false)} className="text-sm font-medium tracking-wide text-[#888] hover:text-[#ededed] transition-colors" disabled={isSaving}>Cancel</button>
-                <button onClick={handleSaveProfile} disabled={isSaving} className="text-sm font-medium tracking-wide bg-[#ededed] text-[#111] px-6 py-2.5 rounded-full hover:bg-[#ffffff] hover:scale-105 transition-all shadow-xl shadow-black/50 disabled:opacity-50">Save</button>
+                <button onClick={() => setIsProfileOpen(false)} className="text-sm font-medium tracking-wide text-[#888] hover:text-[#ededed] transition-colors" disabled={isSaving}>取消</button>
+                <button onClick={handleSaveProfile} disabled={isSaving} className="text-sm font-medium tracking-wide bg-[#ededed] text-[#111] px-6 py-2.5 rounded-full hover:bg-[#ffffff] hover:scale-105 transition-all shadow-xl shadow-black/50 disabled:opacity-50">保存</button>
               </div>
            </DialogContent>
         </Dialog>
