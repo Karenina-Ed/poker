@@ -79,18 +79,20 @@ export function PureRanking() {
   }, []);
 
   const overallRanking = useMemo(() => {
-    const map: Record<string, number> = {};
+    const map: Record<string, { name: string; score: number }> = {};
     matches.forEach(match => {
       match.records.forEach(r => {
-        if (!map[r.name]) map[r.name] = 0;
-        map[r.name] += r.score;
+        const normalizedName = (r.name || '').trim();
+        const key = normalizedName.toLowerCase();
+        
+        if (!map[key]) {
+          map[key] = { name: normalizedName, score: 0 };
+        }
+        map[key].score += (r.score || 0);
       });
     });
     
-    return Object.keys(map).map(name => ({
-      name,
-      score: map[name]
-    })).sort((a, b) => b.score - a.score);
+    return Object.values(map).sort((a, b) => b.score - a.score);
   }, [matches]);
 
   const saveData = async (newData: DailyMatch[]) => {
