@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Trash2, ChevronRight, X } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, X, ArrowUpRight, ArrowDownRight, PencilLine } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -24,12 +24,23 @@ export type DailyMatch = {
   records: PlayerRank[];
 };
 
+export type PlayerProfile = {
+  signature?: string;
+};
+
 const DB_TABLE_NAME = 'pure_ranking';
 
 export function PureRanking() {
   const [matches, setMatches] = useState<DailyMatch[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, PlayerProfile>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Profile edit dialog state
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [editingProfileName, setEditingProfileName] = useState('');
+  const [editingSignature, setEditingSignature] = useState('');
+
   const [errorText, setErrorText] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'total' | 'history'>('total');
@@ -56,19 +67,28 @@ export function PureRanking() {
           return;
         }
         
-        let loadedData = dbData?.data || [];
+        const rawData = dbData?.data;
+        let loadedMatches: DailyMatch[] = [];
+        let loadedProfiles: Record<string, PlayerProfile> = {};
         
-        // Backward compatibility: If old data is a direct array of PlayerRank [ {name, score} ]
-        if (loadedData.length > 0 && loadedData[0].name && typeof loadedData[0].score === 'number' && !loadedData[0].records) {
-           loadedData = [{
-             id: 'legacy-data',
-             date: new Date().toISOString().split('T')[0],
-             title: '历史对局数据',
-             records: loadedData
-           }];
+        if (Array.isArray(rawData)) {
+          // Legacy or migrated format where data is just an array of matches
+          loadedMatches = rawData;
+          if (loadedMatches.length > 0 && (loadedMatches[0] as any).name && typeof (loadedMatches[0] as any).score === 'number' && !loadedMatches[0].records) {
+            loadedMatches = [{
+               id: 'legacy-data',
+               date: new Date().toISOString().split('T')[0],
+               title: '历史沉淀数据',
+               records: loadedMatches as any
+            }];
+          }
+        } else if (rawData && typeof rawData === 'object') {
+          loadedMatches = rawData.matches || [];
+          loadedProfiles = rawData.profiles || {};
         }
         
-        setMatches(loadedData);
+        setMatches(loadedMatches);
+        setProfiles(loadedProfiles);
       } catch (err) {
         console.error('Fetch err', err);
       } finally {
@@ -84,27 +104,56 @@ export function PureRanking() {
       match.records.forEach(r => {
         const normalizedName = (r.name || '').trim();
         const key = normalizedName.toLowerCase();
-        
-        if (!map[key]) {
-          map[key] = { name: normalizedName, score: 0 };
-        }
+        if (!map[key]) map[key] = { name: normalizedName, score: 0 };
         map[key].score += (r.score || 0);
       });
     });
-    
     return Object.values(map).sort((a, b) => b.score - a.score);
   }, [matches]);
 
-  const saveData = async (newData: DailyMatch[]) => {
+  const prevRanking = useMemo(() => {
+    if (matches.length <= 1) return null;
+    const map: Record<string, { name: string; score: number }> = {};
+    // skip the latest match (matches[0])
+    matches.slice(1).forEach(match => {
+      match.records.forEach(r => {
+        const normalizedName = (r.name || '').trim();
+        const key = normalizedName.toLowerCase();
+        if (!map[key]) map[key] = { name: normalizedName, score: 0 };
+        map[key].score += (r.score || 0);
+      });
+    });
+    return Object.values(map).sort((a, b) => b.score - a.score);
+  }, [matches]);
+
+  const getRankChangeInfo = (nameToFind: string, currentRankIndex: number) => {
+    if (!prevRanking) return null;
+    const keyToFind = nameToFind.toLowerCase();
+    const prevRankIndex = prevRanking.findIndex(p => p.name.toLowerCase() === keyToFind);
+    
+    if (prevRankIndex === -1) {
+       // New player
+       return { type: 'new' };
+    }
+    
+    if (currentRankIndex < prevRankIndex) return { type: 'up', diff: prevRankIndex - currentRankIndex };
+    if (currentRankIndex > prevRankIndex) return { type: 'down', diff: currentRankIndex - prevRankIndex };
+    return { type: 'flat' };
+  };
+
+  const saveData = async (newMatches: DailyMatch[], newProfiles: Record<string, PlayerProfile>) => {
     setIsSaving(true);
     try {
+      const payload = { matches: newMatches, profiles: newProfiles };
       const { error } = await supabase
         .from(DB_TABLE_NAME)
-        .upsert({ id: 1, data: newData }, { onConflict: 'id' });
+        .upsert({ id: 1, data: payload }, { onConflict: 'id' });
       
       if (error) throw error;
-      setMatches(newData);
+      setMatches(newMatches);
+      setProfiles(newProfiles);
       setIsOpen(false);
+      setIsProfileOpen(false);
       toast.success('数据已更新并上线');
     } catch (err: any) {
       console.error(err);
@@ -135,11 +184,7 @@ export function PureRanking() {
 
   const openEditMatchDialog = (match: DailyMatch) => {
     setEditingParams({ id: match.id, date: match.date, title: match.title || '对局' });
-    const recs = match.records.map((r, i) => ({
-      id: i,
-      name: r.name,
-      score: String(r.score)
-    }));
+    const recs = match.records.map((r, i) => ({ id: i, name: r.name, score: String(r.score) }));
     setEditingRecords(recs);
     setRecordIdCounter(recs.length);
     setErrorText('');
@@ -148,8 +193,8 @@ export function PureRanking() {
 
   const deleteMatch = async (matchId: string) => {
     if (!confirm('确认删除这条对局记录吗？总榜数据也将同步改变。')) return;
-    const newData = matches.filter(m => m.id !== matchId);
-    await saveData(newData);
+    const newMatches = matches.filter(m => m.id !== matchId);
+    await saveData(newMatches, profiles);
   };
 
   const handleSaveMatch = () => {
@@ -158,7 +203,6 @@ export function PureRanking() {
       const nm = r.name.trim();
       if (!nm) continue;
       const sc = Number(r.score);
-      // Allow valid numbers including 0
       if (!isNaN(sc) && r.score !== '') {
         validRecords.push({ name: nm, score: sc });
       }
@@ -171,9 +215,7 @@ export function PureRanking() {
     
     const total = validRecords.reduce((acc, curr) => acc + curr.score, 0);
     if (Math.abs(total) > 0.01 && editingParams.id !== 'legacy-data') {
-      if (!confirm(`检测到该局流水合计为 ${total}, 尚未平账（应为0），确认强行保存吗？`)) {
-        return;
-      }
+      if (!confirm(`检测到该局流水合计为 ${total}, 尚未平账（应为0），确认强行保存吗？`)) return;
     }
 
     const finalMatch: DailyMatch = {
@@ -184,15 +226,27 @@ export function PureRanking() {
     };
     
     const exists = matches.some(m => m.id === finalMatch.id);
-    let newData;
+    let newMatches;
     if (exists) {
-      newData = matches.map(m => m.id === finalMatch.id ? finalMatch : m);
+      newMatches = matches.map(m => m.id === finalMatch.id ? finalMatch : m);
     } else {
-      newData = [finalMatch, ...matches];
+      newMatches = [finalMatch, ...matches];
     }
-    
-    newData.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    saveData(newData);
+    newMatches.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    saveData(newMatches, profiles);
+  };
+
+  const openProfileDialog = (name: string) => {
+    const key = name.toLowerCase();
+    setEditingProfileName(name);
+    setEditingSignature(profiles[key]?.signature || '');
+    setIsProfileOpen(true);
+  };
+
+  const handleSaveProfile = () => {
+    const key = editingProfileName.toLowerCase();
+    const newProfiles = { ...profiles, [key]: { ...(profiles[key] || {}), signature: editingSignature.trim() } };
+    saveData(matches, newProfiles);
   };
 
   if (isLoading) {
@@ -208,7 +262,6 @@ export function PureRanking() {
   return (
     <div className="min-h-screen w-full bg-[#111] text-[#f5f5f5] font-sans selection:bg-white selection:text-black flex flex-col font-light">
       
-      {/* 头部装饰 */}
       <header className="pt-24 pb-8 md:pt-32 md:pb-16 px-6 md:px-12 w-full max-w-5xl mx-auto flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <p className="text-[10px] md:text-xs font-mono uppercase tracking-[0.3em] text-[#888]">
@@ -219,22 +272,21 @@ export function PureRanking() {
               onClick={() => setActiveTab('total')}
               className={`px-4 py-1.5 text-xs font-medium tracking-widest rounded-full transition-all ${activeTab === 'total' ? 'bg-[#ededed] text-[#111] shadow-sm' : 'text-[#888] hover:text-[#ddd]'}`}
             >
-              总榜
+              TOTAL
             </button>
             <button 
               onClick={() => setActiveTab('history')}
               className={`px-4 py-1.5 text-xs font-medium tracking-widest rounded-full transition-all ${activeTab === 'history' ? 'bg-[#ededed] text-[#111] shadow-sm' : 'text-[#888] hover:text-[#ddd]'}`}
             >
-              单局记录
+              LOGS
             </button>
           </div>
         </div>
         <h1 className="text-5xl md:text-[6rem] font-medium tracking-tighter leading-none mt-4 transition-all">
-          {activeTab === 'total' ? 'WPT417总榜.' : '单局记录.'}
+          {activeTab === 'total' ? 'Leaderboard.' : 'Sessions.'}
         </h1>
       </header>
 
-      {/* 列表主体 */}
       <main className="flex-1 w-full max-w-5xl mx-auto px-6 md:px-12 pb-40">
 
         {/* ========== 总榜 ========== */}
@@ -249,22 +301,46 @@ export function PureRanking() {
                   const profitStr = (player.score || 0).toFixed(1).replace(/\.0$/, '');
                   const isWin = (player.score || 0) > 0;
                   const isTop = index < 3;
+                  const key = player.name.toLowerCase();
+                  const sig = profiles[key]?.signature;
+                  const rankChange = getRankChangeInfo(player.name, index);
                   
                   return (
                     <div
                       key={index}
-                      className={`group flex items-baseline justify-between py-6 md:py-8 border-b border-[#222] hover:bg-[#1a1a1a] transition-colors duration-300 animate-in fade-in slide-in-from-bottom-4`}
+                      className={`group flex items-center justify-between py-6 md:py-8 border-b border-[#222] hover:bg-[#1a1a1a] transition-colors duration-300 animate-in fade-in slide-in-from-bottom-4`}
                       style={{ animationDelay: `${index * 30}ms`, animationFillMode: 'both' }}
                     >
-                      <div className="flex items-baseline gap-6 md:gap-12">
-                        <span className="text-sm md:text-base font-mono text-[#555] w-6 md:w-8 inline-block">
-                          {(index + 1).toString().padStart(2, '0')}
-                        </span>
-                        <span className={`text-2xl md:text-5xl tracking-tight ${isTop ? 'font-medium text-[#f5f5f5]' : 'font-light text-[#888] group-hover:text-[#eee] transition-colors'}`}>
-                          {player.name}
-                        </span>
+                      <div className="flex items-center gap-6 md:gap-12 flex-1 min-w-0">
+                        <div className="flex flex-col items-center justify-center w-6 md:w-8 shrink-0 relative">
+                          <span className="text-sm md:text-base font-mono text-[#555]">
+                            {(index + 1).toString().padStart(2, '0')}
+                          </span>
+                          {rankChange && rankChange.type !== 'flat' && (
+                             <div className={`absolute -bottom-4 text-[10px] font-bold font-mono tracking-tighter flex items-center ${rankChange.type === 'up' ? 'text-green-500' : rankChange.type === 'down' ? 'text-red-500' : 'text-blue-400'}`}>
+                               {rankChange.type === 'up' && <><ArrowUpRight className="w-3 h-3"/>{rankChange.diff}</>}
+                               {rankChange.type === 'down' && <><ArrowDownRight className="w-3 h-3"/>{rankChange.diff}</>}
+                               {rankChange.type === 'new' && <span className="opacity-80">NEW</span>}
+                             </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col min-w-0 pr-4">
+                          <div className="flex items-center gap-3">
+                            <span className={`text-2xl md:text-4xl tracking-tight truncate ${isTop ? 'font-medium text-[#f5f5f5]' : 'font-light text-[#888] group-hover:text-[#eee] transition-colors'}`}>
+                              {player.name}
+                            </span>
+                            <button onClick={() => openProfileDialog(player.name)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 text-[#555] hover:text-[#eee] rounded-full hover:bg-white/10 shrink-0">
+                              <PencilLine className="w-4 h-4"/>
+                            </button>
+                          </div>
+                          {sig && (
+                            <span className="text-xs md:text-sm text-[#666] font-mono mt-1 pr-2 truncate max-w-[200px] md:max-w-md">
+                              "{sig}"
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div className={`font-mono text-2xl md:text-5xl tabular-nums tracking-tighter ${isWin ? 'text-[#f5f5f5]' : 'text-[#666]'}`}>
+                      <div className={`font-mono text-2xl md:text-5xl tabular-nums tracking-tighter shrink-0 ${isWin ? 'text-[#f5f5f5]' : 'text-[#666]'}`}>
                         {isWin ? '+' : ''}{profitStr}
                       </div>
                     </div>
@@ -352,7 +428,7 @@ export function PureRanking() {
                  onClick={openNewMatchDialog}
                  className="text-[10px] md:text-xs font-mono uppercase tracking-[0.2em] text-[#999] group-hover:text-[#f5f5f5] transition-colors border-b border-[#333] group-hover:border-[#ededed] pb-1"
                >
-                 添加对局记录
+                 Add Session Log
                </button>
              </div>
           </DialogTrigger>
@@ -435,7 +511,7 @@ export function PureRanking() {
                 className="w-full mt-6 text-[#888] hover:text-[#ededed] hover:bg-[#181818] font-light tracking-wide rounded-xl py-6"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                添加玩家
+                Add Row
               </Button>
               
               {errorText && (
@@ -462,6 +538,32 @@ export function PureRanking() {
               </button>
             </div>
           </DialogContent>
+        </Dialog>
+
+        {/* Profile Dialog */}
+        <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
+           <DialogContent className="sm:max-w-md bg-[#111] border border-[#222] text-[#f5f5f5] shadow-2xl rounded-2xl p-8">
+              <DialogHeader className="mb-6">
+                <DialogTitle className="text-2xl font-medium tracking-tight">Edit Profile</DialogTitle>
+                <div className="text-sm text-[#888] font-light mt-1">Set signature for {editingProfileName}</div>
+              </DialogHeader>
+              <div className="space-y-4">
+                 <div>
+                    <label className="text-[10px] font-mono uppercase tracking-widest text-[#666] mb-2 block">Signature</label>
+                    <Input 
+                      value={editingSignature}
+                      onChange={e => setEditingSignature(e.target.value)}
+                      placeholder="e.g. All in or fold"
+                      className="bg-[#181818] border-[#333] h-12 text-[#eee] focus-visible:ring-0 focus-visible:border-white transition-colors"
+                      maxLength={100}
+                    />
+                 </div>
+              </div>
+              <div className="flex justify-end gap-6 mt-8 pt-6 border-t border-[#222]">
+                <button onClick={() => setIsProfileOpen(false)} className="text-sm font-medium tracking-wide text-[#888] hover:text-[#ededed] transition-colors" disabled={isSaving}>Cancel</button>
+                <button onClick={handleSaveProfile} disabled={isSaving} className="text-sm font-medium tracking-wide bg-[#ededed] text-[#111] px-6 py-2.5 rounded-full hover:bg-[#ffffff] hover:scale-105 transition-all shadow-xl shadow-black/50 disabled:opacity-50">Save</button>
+              </div>
+           </DialogContent>
         </Dialog>
       </div>
     </div>
