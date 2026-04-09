@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Trash2, ChevronRight, X, ArrowUpRight, ArrowDownRight, PencilLine } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, X, ArrowUpRight, ArrowDownRight, PencilLine, Crown } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -326,10 +326,17 @@ export function PureRanking() {
                         </div>
                         <div className="flex flex-col min-w-0 pr-4">
                           <div className="flex items-center gap-3">
-                            <span className={`text-2xl md:text-4xl tracking-tight truncate ${isTop ? 'font-medium text-[#f5f5f5]' : 'font-light text-[#888] group-hover:text-[#eee] transition-colors'}`}>
+                            {index === 0 && <Crown className="w-6 h-6 md:w-8 md:h-8 text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.6)] animate-pulse shrink-0" />}
+                            <span className={`text-2xl md:text-4xl tracking-tight truncate ${
+                              index === 0 
+                                ? 'font-bold bg-gradient-to-r from-yellow-200 via-yellow-400 to-amber-500 bg-clip-text text-transparent' 
+                                : isTop 
+                                  ? 'font-medium text-[#f5f5f5]' 
+                                  : 'font-light text-[#888] group-hover:text-[#eee] transition-colors'
+                            }`}>
                               {player.name}
                             </span>
-                            <button onClick={() => openProfileDialog(player.name)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 text-[#555] hover:text-[#eee] rounded-full hover:bg-white/10 shrink-0">
+                            <button onClick={() => openProfileDialog(player.name)} className={`opacity-0 group-hover:opacity-100 transition-opacity p-1.5 ${index === 0 ? 'text-yellow-400/50 hover:text-yellow-400 hover:bg-yellow-400/10' : 'text-[#555] hover:text-[#eee] hover:bg-white/10'} rounded-full shrink-0`}>
                               <PencilLine className="w-4 h-4"/>
                             </button>
                           </div>
