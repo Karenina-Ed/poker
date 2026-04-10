@@ -32,23 +32,24 @@ export type PlayerProfile = {
 
 
 
+
 const SquidBackground = ({ wins }: { wins?: number }) => {
   if (!wins || wins < 1) return null;
 
-  let svgOpacity = "opacity-[0.05]";
+  let svgOpacity = "opacity-[0.08]";
   let svgColor = "text-white";
   let bgLayer = "bg-[#ffffff]/[0.01]";
   let particleColor = "bg-white/40";
   let shimmerVia = "via-white/[0.03]";
 
   if (wins >= 3 && wins < 5) {
-    svgOpacity = "opacity-[0.08]";
+    svgOpacity = "opacity-[0.15]";
     svgColor = "text-purple-400";
     bgLayer = "bg-purple-900/5";
     particleColor = "bg-purple-400/60";
     shimmerVia = "via-purple-400/[0.04]";
   } else if (wins >= 5) {
-    svgOpacity = "opacity-[0.12]";
+    svgOpacity = "opacity-[0.25]";
     svgColor = "text-amber-400";
     bgLayer = "bg-gradient-to-r from-amber-600/10 via-[#111] to-[#111] border border-amber-500/20 shadow-[inset_0_0_30px_rgba(251,191,36,0.05)]";
     particleColor = "bg-amber-300";
@@ -84,31 +85,43 @@ const SquidBackground = ({ wins }: { wins?: number }) => {
     </>
   );
 
+  const svgGlow = wins >= 5 ? "drop-shadow-[0_0_8px_rgba(251,191,36,0.4)] animate-pulse" : "";
+
   return (
     <div className={`absolute inset-0 pointer-events-none z-0 transition-all duration-700 ${bgLayer} rounded-xl overflow-hidden`}>
       {effectLayer}
-      <div className={`absolute -right-[10%] md:-right-[5%] top-1/2 -translate-y-1/2 min-w-[300px] min-h-[300px] w-[50%] md:w-[40%] h-[150%] flex items-center justify-end mix-blend-screen`}>
+      <div className="absolute inset-0 w-full h-full mix-blend-screen flex items-center justify-center">
         <svg 
-          className={`w-full h-full object-contain -rotate-90 ${svgColor} ${svgOpacity}`} 
-          viewBox="0 0 100 100" 
-          fill="none" 
-          stroke="currentColor" 
-          strokeWidth="1.5" 
-          strokeLinecap="round" 
-          strokeLinejoin="round"
-          preserveAspectRatio="xMidYMid meet"
+          className={`w-full h-full ${svgColor} ${svgOpacity} ${svgGlow}`} 
+          viewBox="0 0 1000 200" 
+          preserveAspectRatio="xMidYMid slice"
         >
-          <path d="M50 5 Q35 25 35 50 Q35 65 50 75 Q65 65 65 50 Q65 25 50 5 Z" fill="currentColor" fillOpacity="0.1"/>
-          <path d="M40 25 L15 35 L35 45" />
-          <path d="M60 25 L85 35 L65 45" />
-          <circle cx="43" cy="55" r="2.5" fill="currentColor"/>
-          <circle cx="57" cy="55" r="2.5" fill="currentColor"/>
+          {/* Main continuous wavy line tracing the squid body */}
+          <path d="
+            M -50 120 
+            Q 200 160, 450 110 T 560 125
+            C 550 100, 540 90, 540 60
+            L 520 70
+            Q 540 30, 580 40
+            Q 610 45, 620 60
+            L 590 70
+            C 580 80, 580 100, 590 110
+            C 600 120, 610 110, 615 90
+            C 625 90, 640 100, 640 120
+            C 640 140, 630 160, 610 170
+            C 600 175, 590 160, 600 150
+            C 610 140, 620 140, 630 125
+            C 640 110, 680 130, 750 120
+            T 1050 120
+          " fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
           
-          <path d="M40 70 Q25 90 20 110" strokeWidth="1"/>
-          <path d="M45 73 Q40 95 35 115" strokeWidth="1.2"/>
-          <path d="M50 75 Q50 100 50 120" strokeWidth="1.5"/>
-          <path d="M55 73 Q60 95 65 115" strokeWidth="1.2"/>
-          <path d="M60 70 Q75 90 80 110" strokeWidth="1"/>
+          {/* Additional Tentacles to give depth, like in sketch */}
+          <path d="M 570 120 Q 550 160, 560 170 Q 570 180, 580 150" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          <path d="M 585 115 Q 580 180, 595 190 Q 610 200, 605 160" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          <path d="M 625 115 Q 645 150, 640 165 Q 635 180, 620 160" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          
+          {/* Minimalist eye curve */}
+          <path d="M 600 95 Q 605 90, 610 95" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
         </svg>
       </div>
     </div>
