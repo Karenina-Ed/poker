@@ -445,7 +445,7 @@ export function PureRanking() {
                           )}
                         </div>
                       </div>
-                      <div className={`relative z-10 font-mono text-2xl md:text-5xl tabular-nums tracking-tighter shrink-0 pr-4 md:pr-8`} style={{ color: isWin ? "rgb(202,253,92)" : "rgb(232,85,255)" }}>
+                      <div className={`relative z-10 font-mono text-2xl md:text-5xl tabular-nums tracking-tighter shrink-0 pr-4 md:pr-8`} style={{ color: isWin ? "rgb(202,253,92)" : "rgb(232,85,268)" }}>
                         {isWin ? '+' : ''}{profitStr}
                       </div>
                     </div>
@@ -510,7 +510,7 @@ export function PureRanking() {
                                <span className="text-[#555] font-mono text-xs">{(idx+1).toString().padStart(2,'0')}</span>
                                <span className="text-[#ccc] group-hover/item:text-white transition-colors">{r.name}</span>
                              </div>
-                             <span className={`font-mono tabular-nums text-sm`} style={{ color: r.score >= 0 ? "rgb(202,253,92)" : "rgb(232,85,255)" }}>
+                             <span className={`font-mono tabular-nums text-sm`} style={{ color: r.score >= 0 ? "rgb(202,253,92)" : "rgb(232,85,268)" }}>
                                {r.score > 0 ? '+' : ''}{(r.score || 0).toFixed(1).replace(/\.0$/, '')}
                              </span>
                            </div>
