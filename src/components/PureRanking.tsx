@@ -33,6 +33,7 @@ export type PlayerProfile = {
 
 
 
+
 const SquidBackground = ({ wins }: { wins?: number }) => {
   if (!wins || wins < 1) return null;
 
@@ -42,13 +43,13 @@ const SquidBackground = ({ wins }: { wins?: number }) => {
   let particleColor = "bg-white/40";
   let shimmerVia = "via-white/[0.03]";
 
-  if (wins >= 3 && wins < 5) {
-    svgOpacity = "opacity-[0.15]";
+  if (wins === 2) {
+    svgOpacity = "opacity-[0.16]";
     svgColor = "text-purple-400";
     bgLayer = "bg-purple-900/5";
     particleColor = "bg-purple-400/60";
     shimmerVia = "via-purple-400/[0.04]";
-  } else if (wins >= 5) {
+  } else if (wins >= 3) {
     svgOpacity = "opacity-[0.25]";
     svgColor = "text-amber-400";
     bgLayer = "bg-gradient-to-r from-amber-600/10 via-[#111] to-[#111] border border-amber-500/20 shadow-[inset_0_0_30px_rgba(251,191,36,0.05)]";
@@ -85,7 +86,7 @@ const SquidBackground = ({ wins }: { wins?: number }) => {
     </>
   );
 
-  const svgGlow = wins >= 5 ? "drop-shadow-[0_0_8px_rgba(251,191,36,0.4)] animate-pulse" : "";
+  const svgGlow = wins >= 3 ? "drop-shadow-[0_0_8px_rgba(251,191,36,0.4)] animate-pulse" : "";
 
   return (
     <div className={`absolute inset-0 pointer-events-none z-0 transition-all duration-700 ${bgLayer} rounded-xl overflow-hidden`}>
@@ -96,32 +97,25 @@ const SquidBackground = ({ wins }: { wins?: number }) => {
           viewBox="0 0 1000 200" 
           preserveAspectRatio="xMidYMid slice"
         >
-          {/* Main continuous wavy line tracing the squid body */}
-          <path d="
-            M -50 120 
-            Q 200 160, 450 110 T 560 125
-            C 550 100, 540 90, 540 60
-            L 520 70
-            Q 540 30, 580 40
-            Q 610 45, 620 60
-            L 590 70
-            C 580 80, 580 100, 590 110
-            C 600 120, 610 110, 615 90
-            C 625 90, 640 100, 640 120
-            C 640 140, 630 160, 610 170
-            C 600 175, 590 160, 600 150
-            C 610 140, 620 140, 630 125
-            C 640 110, 680 130, 750 120
-            T 1050 120
-          " fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Incoming wave from left */}
+          <path d="M 0 100 Q 200 130 400 100 T 720 100" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           
-          {/* Additional Tentacles to give depth, like in sketch */}
-          <path d="M 570 120 Q 550 160, 560 170 Q 570 180, 580 150" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          <path d="M 585 115 Q 580 180, 595 190 Q 610 200, 605 160" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          <path d="M 625 115 Q 645 150, 640 165 Q 635 180, 620 160" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          
-          {/* Minimalist eye curve */}
-          <path d="M 600 95 Q 605 90, 610 95" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+          {/* Accurately drawn squid body referencing line art style */}
+          <g transform="translate(750, 95) scale(1.5) rotate(15)">
+            {/* Mantle/Head and top fins */}
+            <path d="M -15,5 C -20,-10 -15,-25 -15,-25 L -30,-30 L 0,-50 L 30,-30 L 15,-25 C 15,-25 20,-10 15,5 Z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+            {/* Eyes */}
+            <circle cx="-6" cy="-2" r="1.2" fill="currentColor"/>
+            <circle cx="6" cy="-2" r="1.2" fill="currentColor"/>
+            {/* Wavy Tentacles */}
+            <path d="M -15,5 Q -30,20 -25,40 Q -20,60 -40,55" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <path d="M -5,6 Q -10,30 5,50 Q 20,70 5,80" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <path d="M 5,6 Q 10,25 -5,45 Q -25,65 0,75" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <path d="M 15,5 Q 30,20 25,35 Q 20,50 40,45" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </g>
+
+          {/* Outgoing wave to right */}
+          <path d="M 780 100 Q 880 70 1000 100" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </div>
     </div>
