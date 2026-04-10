@@ -26,6 +26,49 @@ export type DailyMatch = {
 
 export type PlayerProfile = {
   signature?: string;
+  tournamentWins?: number;
+};
+
+
+const SquidBackground = ({ wins }: { wins?: number }) => {
+  if (!wins || wins < 1) return null;
+
+  let colorClass = "text-white/5"; 
+  let scale = "scale-100";
+  let effectClass = "";
+
+  if (wins >= 3 && wins < 5) {
+    colorClass = "text-purple-500/10"; 
+    scale = "scale-110";
+  } else if (wins >= 5) {
+    colorClass = "text-amber-400/20"; 
+    scale = "scale-125";
+    effectClass = "animate-pulse drop-shadow-[0_0_15px_rgba(251,191,36,0.2)]";
+  }
+
+  return (
+    <div className={`absolute right-[5%] md:right-[10%] top-1/2 -translate-y-1/2 pointer-events-none transition-all duration-700 ${scale} z-0`}>
+      <svg 
+        className={`w-24 h-24 md:w-40 md:h-40 -rotate-12 ${colorClass} ${effectClass}`} 
+        viewBox="0 0 100 100" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+      >
+        <path d="M50 10 Q40 25 40 45 Q40 55 50 60 Q60 55 60 45 Q60 25 50 10 Z" />
+        <path d="M42 25 L25 35 L40 40" />
+        <path d="M58 25 L75 35 L60 40" />
+        <circle cx="45" cy="50" r="2" fill="currentColor"/>
+        <circle cx="55" cy="50" r="2" fill="currentColor"/>
+        <path d="M42 58 Q35 75 30 90" />
+        <path d="M47 60 Q45 80 42 95" />
+        <path d="M53 60 Q55 80 58 95" />
+        <path d="M58 58 Q65 75 70 90" />
+      </svg>
+    </div>
+  );
 };
 
 const DB_TABLE_NAME = 'pure_ranking';
@@ -40,6 +83,7 @@ export function PureRanking() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [editingProfileName, setEditingProfileName] = useState('');
   const [editingSignature, setEditingSignature] = useState('');
+  const [editingTournamentWins, setEditingTournamentWins] = useState(0);
 
   const [errorText, setErrorText] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -240,12 +284,13 @@ export function PureRanking() {
     const key = name.toLowerCase();
     setEditingProfileName(name);
     setEditingSignature(profiles[key]?.signature || '');
+    setEditingTournamentWins(profiles[key]?.tournamentWins || 0);
     setIsProfileOpen(true);
   };
 
   const handleSaveProfile = () => {
     const key = editingProfileName.toLowerCase();
-    const newProfiles = { ...profiles, [key]: { ...(profiles[key] || {}), signature: editingSignature.trim() } };
+    const newProfiles = { ...profiles, [key]: { ...(profiles[key] || {}), signature: editingSignature.trim(), tournamentWins: Number(editingTournamentWins) || 0 } };
     saveData(matches, newProfiles);
   };
 
@@ -304,14 +349,16 @@ export function PureRanking() {
                   const key = player.name.toLowerCase();
                   const sig = profiles[key]?.signature;
                   const rankChange = getRankChangeInfo(player.name, index);
+                  const tWins = profiles[key]?.tournamentWins || 0;
                   
                   return (
                     <div
                       key={index}
-                      className={`group flex items-center justify-between py-6 md:py-8 border-b border-[#222] hover:bg-[#1a1a1a] transition-colors duration-300 animate-in fade-in slide-in-from-bottom-4`}
+                      className={`relative overflow-hidden group flex items-center justify-between py-6 md:py-8 border-b border-[#222] hover:bg-[#1a1a1a] transition-colors duration-300 animate-in fade-in slide-in-from-bottom-4`}
                       style={{ animationDelay: `${index * 30}ms`, animationFillMode: 'both' }}
                     >
-                      <div className="flex items-center gap-6 md:gap-12 flex-1 min-w-0">
+                      <SquidBackground wins={tWins} />
+                      <div className="relative z-10 flex items-center gap-6 md:gap-12 flex-1 min-w-0">
                         <div className="flex flex-col items-center justify-center w-6 md:w-8 shrink-0 relative">
                           <span className="text-sm md:text-base font-mono text-[#555]">
                             {(index + 1).toString().padStart(2, '0')}
@@ -347,7 +394,7 @@ export function PureRanking() {
                           )}
                         </div>
                       </div>
-                      <div className={`font-mono text-2xl md:text-5xl tabular-nums tracking-tighter shrink-0 ${isWin ? 'text-[#f5f5f5]' : 'text-[#666]'}`}>
+                      <div className={`relative z-10 font-mono text-2xl md:text-5xl tabular-nums tracking-tighter shrink-0 ${isWin ? 'text-[#f5f5f5]' : 'text-[#666]'}`}>
                         {isWin ? '+' : ''}{profitStr}
                       </div>
                     </div>
@@ -563,6 +610,17 @@ export function PureRanking() {
                       placeholder="例如：赢了会所嫩模..."
                       className="bg-[#181818] border-[#333] h-12 text-[#eee] focus-visible:ring-0 focus-visible:border-white transition-colors"
                       maxLength={100}
+                    />
+                 </div>
+                 <div>
+                    <label className="text-[10px] font-mono uppercase tracking-widest text-[#666] mb-2 block block mt-4">锦标赛冠军次数 (鱿鱼特效)</label>
+                    <Input 
+                      type="number"
+                      min="0"
+                      value={editingTournamentWins}
+                      onChange={e => setEditingTournamentWins(parseInt(e.target.value) || 0)}
+                      placeholder="0"
+                      className="bg-[#181818] border-[#333] h-12 text-[#eee] focus-visible:ring-0 focus-visible:border-white transition-colors"
                     />
                  </div>
               </div>
