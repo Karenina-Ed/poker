@@ -34,22 +34,26 @@ export type PlayerProfile = {
 
 
 
+
 const SquidBackground = ({ wins }: { wins?: number }) => {
   if (!wins || wins < 1) return null;
 
   let svgOpacity = "opacity-[0.08]";
-    let bgLayer = "bg-[#ffffff]/[0.01]";
+  let svgColor = "text-white";
+  let bgLayer = "bg-[#ffffff]/[0.01]";
   let particleColor = "bg-white/40";
   let shimmerVia = "via-white/[0.03]";
 
   if (wins === 2) {
     svgOpacity = "opacity-[0.16]";
-        bgLayer = "bg-purple-900/5";
+    svgColor = "text-purple-400";
+    bgLayer = "bg-purple-900/5";
     particleColor = "bg-purple-400/60";
     shimmerVia = "via-purple-400/[0.04]";
   } else if (wins >= 3) {
     svgOpacity = "opacity-[0.25]";
-        bgLayer = "bg-gradient-to-r from-amber-600/10 via-[#111] to-[#111] border border-amber-500/20 shadow-[inset_0_0_30px_rgba(251,191,36,0.05)]";
+    svgColor = "text-amber-400";
+    bgLayer = "bg-gradient-to-r from-amber-600/10 via-[#111] to-[#111] border border-amber-500/20 shadow-[inset_0_0_30px_rgba(251,191,36,0.05)]";
     particleColor = "bg-amber-300";
     shimmerVia = "via-amber-200/5";
   }
@@ -90,43 +94,34 @@ const SquidBackground = ({ wins }: { wins?: number }) => {
       {effectLayer}
       <div className="absolute inset-0 w-full h-full mix-blend-screen flex items-center justify-center">
         <svg 
-          className={`w-full h-full  ${svgOpacity} ${svgGlow}`} 
+          className={`w-full h-full ${svgColor} ${svgOpacity} ${svgGlow}`} 
           viewBox="0 0 1000 200" 
           preserveAspectRatio="xMidYMid slice"
         >
-          <defs>
-            <linearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgb(202, 253, 92)" />
-              <stop offset="47%" stopColor="rgb(202, 253, 92)" />
-              <stop offset="53%" stopColor="rgb(232, 85, 255)" />
-              <stop offset="100%" stopColor="rgb(232, 85, 255)" />
-            </linearGradient>
-          </defs>
           {/* Incoming wave from left */}
-          <path d="M 0 100 Q 200 130 400 100 T 720 100" fill="none" stroke="url(#waterGrad)" strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M 0 100 Q 200 130 400 100 T 720 100" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           
           {/* Accurately drawn squid body referencing line art style */}
           <g transform="translate(750, 95) scale(1.5) rotate(15)">
             {/* Mantle/Head and top fins */}
-            <path d="M -15,5 C -20,-10 -15,-25 -15,-25 L -30,-30 L 0,-50 L 30,-30 L 15,-25 C 15,-25 20,-10 15,5 Z" fill="none" stroke="url(#waterGrad)" strokeWidth="1.5" strokeLinejoin="round"/>
+            <path d="M -15,5 C -20,-10 -15,-25 -15,-25 L -30,-30 L 0,-50 L 30,-30 L 15,-25 C 15,-25 20,-10 15,5 Z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
             {/* Eyes */}
-            <circle cx="-6" cy="-2" r="1.2" fill="url(#waterGrad)"/>
-            <circle cx="6" cy="-2" r="1.2" fill="url(#waterGrad)"/>
+            <circle cx="-6" cy="-2" r="1.2" fill="currentColor"/>
+            <circle cx="6" cy="-2" r="1.2" fill="currentColor"/>
             {/* Wavy Tentacles */}
-            <path d="M -15,5 Q -30,20 -25,40 Q -20,60 -40,55" fill="none" stroke="url(#waterGrad)" strokeWidth="1.5" strokeLinecap="round"/>
-            <path d="M -5,6 Q -10,30 5,50 Q 20,70 5,80" fill="none" stroke="url(#waterGrad)" strokeWidth="1.5" strokeLinecap="round"/>
-            <path d="M 5,6 Q 10,25 -5,45 Q -25,65 0,75" fill="none" stroke="url(#waterGrad)" strokeWidth="1.5" strokeLinecap="round"/>
-            <path d="M 15,5 Q 30,20 25,35 Q 20,50 40,45" fill="none" stroke="url(#waterGrad)" strokeWidth="1.5" strokeLinecap="round"/>
+            <path d="M -15,5 Q -30,20 -25,40 Q -20,60 -40,55" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <path d="M -5,6 Q -10,30 5,50 Q 20,70 5,80" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <path d="M 5,6 Q 10,25 -5,45 Q -25,65 0,75" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <path d="M 15,5 Q 30,20 25,35 Q 20,50 40,45" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
           </g>
 
           {/* Outgoing wave to right */}
-          <path d="M 780 100 Q 880 70 1000 100" fill="none" stroke="url(#waterGrad)" strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M 780 100 Q 880 70 1000 100" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </div>
     </div>
   );
 };
-
 const DB_TABLE_NAME = 'pure_ranking';
 
 export function PureRanking() {
@@ -450,7 +445,7 @@ export function PureRanking() {
                           )}
                         </div>
                       </div>
-                      <div className={`relative z-10 font-mono text-2xl md:text-5xl tabular-nums tracking-tighter shrink-0 pr-4 md:pr-8 ${isWin ? 'text-[#f5f5f5]' : 'text-[#666]'}`}>
+                      <div className={`relative z-10 font-mono text-2xl md:text-5xl tabular-nums tracking-tighter shrink-0 pr-4 md:pr-8`} style={{ color: isWin ? "rgb(202,253,92)" : "rgb(232,85,255)" }}>
                         {isWin ? '+' : ''}{profitStr}
                       </div>
                     </div>
@@ -515,7 +510,7 @@ export function PureRanking() {
                                <span className="text-[#555] font-mono text-xs">{(idx+1).toString().padStart(2,'0')}</span>
                                <span className="text-[#ccc] group-hover/item:text-white transition-colors">{r.name}</span>
                              </div>
-                             <span className={`font-mono tabular-nums text-sm ${r.score >= 0 ? 'text-[#f5f5f5]' : 'text-[#666]'}`}>
+                             <span className={`font-mono tabular-nums text-sm`} style={{ color: r.score >= 0 ? "rgb(202,253,92)" : "rgb(232,85,255)" }}>
                                {r.score > 0 ? '+' : ''}{(r.score || 0).toFixed(1).replace(/\.0$/, '')}
                              </span>
                            </div>
