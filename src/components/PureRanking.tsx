@@ -35,24 +35,23 @@ export type PlayerProfile = {
 
 
 
+
+
 const SquidBackground = ({ wins }: { wins?: number }) => {
   if (!wins || wins < 1) return null;
 
-  let svgOpacity = "opacity-[0.08]";
-  let svgColor = "text-white";
+  let svgOpacity = "text-white opacity-[0.08]";
   let bgLayer = "bg-[#ffffff]/[0.01]";
   let particleColor = "bg-white/40";
   let shimmerVia = "via-white/[0.03]";
 
   if (wins === 2) {
-    svgOpacity = "opacity-[0.16]";
-    svgColor = "text-purple-400";
+    svgOpacity = "text-purple-400 opacity-[0.15]";
     bgLayer = "bg-purple-900/5";
     particleColor = "bg-purple-400/60";
     shimmerVia = "via-purple-400/[0.04]";
   } else if (wins >= 3) {
-    svgOpacity = "opacity-[0.25]";
-    svgColor = "text-amber-400";
+    svgOpacity = "text-amber-400 opacity-[0.25]";
     bgLayer = "bg-gradient-to-r from-amber-600/10 via-[#111] to-[#111] border border-amber-500/20 shadow-[inset_0_0_30px_rgba(251,191,36,0.05)]";
     particleColor = "bg-amber-300";
     shimmerVia = "via-amber-200/5";
@@ -65,9 +64,8 @@ const SquidBackground = ({ wins }: { wins?: number }) => {
           0% { transform: translateX(-200px) skewX(-15deg); }
           100% { transform: translateX(110vw) skewX(-15deg); }
         }
-        .animate-shimmer-slide {
-          animation: shimmer-slide 4s infinite linear;
-        }
+        .animate-shimmer-slide { animation: shimmer-slide 4s infinite linear; }
+        
         @keyframes float-up {
           0% { transform: translateY(0px) scale(1); opacity: 0; }
           50% { opacity: 1; }
@@ -76,6 +74,29 @@ const SquidBackground = ({ wins }: { wins?: number }) => {
         .animate-particle-1 { animation: float-up 3s infinite 0.2s; }
         .animate-particle-2 { animation: float-up 4s infinite 1.5s; }
         .animate-particle-3 { animation: float-up 3.5s infinite 2.8s; }
+
+        @keyframes squid-swim {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-8px) rotate(-3deg); }
+        }
+        .animate-squid-swim { animation: squid-swim 4s ease-in-out infinite; }
+        
+        @keyframes tentacle-1 {
+          0%, 100% { transform: rotate(0deg); }
+          50% { transform: rotate(6deg) scaleY(1.05); }
+        }
+        @keyframes tentacle-2 {
+          0%, 100% { transform: rotate(0deg); }
+          50% { transform: rotate(-6deg) scaleY(0.95); }
+        }
+        .animate-tentacle-1 { animation: tentacle-1 4s ease-in-out infinite; transform-origin: 0px 5px; }
+        .animate-tentacle-2 { animation: tentacle-2 4s ease-in-out infinite; transform-origin: 0px 5px; }
+
+        @keyframes wave-breathe {
+          0%, 100% { transform: translateX(0px); }
+          50% { transform: translateX(-30px); }
+        }
+        .animate-wave { animation: wave-breathe 8s ease-in-out infinite; }
       `}</style>
       <div className="absolute inset-0 overflow-hidden">
         <div className={`absolute top-0 bottom-0 w-[200px] bg-gradient-to-r from-transparent ${shimmerVia} to-transparent animate-shimmer-slide`}></div>
@@ -87,41 +108,54 @@ const SquidBackground = ({ wins }: { wins?: number }) => {
     </>
   );
 
-  const svgGlow = wins >= 3 ? "drop-shadow-[0_0_8px_rgba(251,191,36,0.4)] animate-pulse" : "";
+  const svgGlow = wins >= 3 ? "drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]" : "";
 
   return (
     <div className={`absolute inset-0 pointer-events-none z-0 transition-all duration-700 ${bgLayer} overflow-hidden`}>
       {effectLayer}
       <div className="absolute inset-0 w-full h-full mix-blend-screen flex items-center justify-center">
         <svg 
-          className={`w-full h-full ${svgColor} ${svgOpacity} ${svgGlow}`} 
+          className={`w-full h-full ${svgOpacity} ${svgGlow}`} 
           viewBox="0 0 1000 200" 
           preserveAspectRatio="xMidYMid slice"
         >
-          {/* Incoming wave from left */}
-          <path d="M 0 100 Q 200 130 400 100 T 720 100" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          <g className="animate-wave">
+            {/* Incoming wave from left */}
+            <path d="M -100 100 Q 150 130 350 100 T 720 100" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            {/* Outgoing wave to right */}
+            <path d="M 780 100 Q 880 70 1200 100" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </g>
           
           {/* Accurately drawn squid body referencing line art style */}
           <g transform="translate(750, 95) scale(1.5) rotate(15)">
-            {/* Mantle/Head and top fins */}
-            <path d="M -15,5 C -20,-10 -15,-25 -15,-25 L -30,-30 L 0,-50 L 30,-30 L 15,-25 C 15,-25 20,-10 15,5 Z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-            {/* Eyes */}
-            <circle cx="-6" cy="-2" r="1.2" fill="currentColor"/>
-            <circle cx="6" cy="-2" r="1.2" fill="currentColor"/>
-            {/* Wavy Tentacles */}
-            <path d="M -15,5 Q -30,20 -25,40 Q -20,60 -40,55" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            <path d="M -5,6 Q -10,30 5,50 Q 20,70 5,80" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            <path d="M 5,6 Q 10,25 -5,45 Q -25,65 0,75" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            <path d="M 15,5 Q 30,20 25,35 Q 20,50 40,45" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <g className="animate-squid-swim">
+              {/* Mantle/Head and top fins */}
+              <path d="M -15,5 C -20,-10 -15,-25 -15,-25 L -30,-30 L 0,-50 L 30,-30 L 15,-25 C 15,-25 20,-10 15,5 Z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+              {/* Eyes */}
+              <circle cx="-6" cy="-2" r="1.2" fill="currentColor"/>
+              <circle cx="6" cy="-2" r="1.2" fill="currentColor"/>
+              
+              {/* Wavy Tentacles with alternating animation timings */}
+              <g className="animate-tentacle-1">
+                <path d="M -15,5 Q -30,20 -25,40 Q -20,60 -40,55" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </g>
+              <g className="animate-tentacle-2" style={{ animationDelay: '-1s' }}>
+                <path d="M -5,6 Q -10,30 5,50 Q 20,70 5,80" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </g>
+              <g className="animate-tentacle-1" style={{ animationDelay: '-2s' }}>
+                <path d="M 5,6 Q 10,25 -5,45 Q -25,65 0,75" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </g>
+              <g className="animate-tentacle-2" style={{ animationDelay: '-3s' }}>
+                <path d="M 15,5 Q 30,20 25,35 Q 20,50 40,45" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </g>
+            </g>
           </g>
-
-          {/* Outgoing wave to right */}
-          <path d="M 780 100 Q 880 70 1000 100" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </div>
     </div>
   );
 };
+
 const DB_TABLE_NAME = 'pure_ranking';
 
 export function PureRanking() {
