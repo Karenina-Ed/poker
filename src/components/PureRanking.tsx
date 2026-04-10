@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Trash2, ChevronRight, X, ArrowUpRight, ArrowDownRight, PencilLine, Crown } from 'lucide-react';
+import { Plus, Minus, Trash2, ChevronRight, X, ArrowUpRight, ArrowDownRight, PencilLine, Crown } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -61,8 +61,8 @@ const SquidBackground = ({ wins }: { wins?: number }) => {
     <>
       <style>{`
         @keyframes shimmer-slide {
-          0% { transform: translateX(-150%) skewX(-15deg); }
-          100% { transform: translateX(200%) skewX(-15deg); }
+          0% { transform: translateX(-200px) skewX(-15deg); }
+          100% { transform: translateX(110vw) skewX(-15deg); }
         }
         .animate-shimmer-slide {
           animation: shimmer-slide 4s infinite linear;
@@ -76,7 +76,7 @@ const SquidBackground = ({ wins }: { wins?: number }) => {
         .animate-particle-2 { animation: float-up 4s infinite 1.5s; }
         .animate-particle-3 { animation: float-up 3.5s infinite 2.8s; }
       `}</style>
-      <div className="absolute inset-0 overflow-hidden rounded-xl">
+      <div className="absolute inset-0 overflow-hidden">
         <div className={`absolute top-0 bottom-0 w-[200px] bg-gradient-to-r from-transparent ${shimmerVia} to-transparent animate-shimmer-slide`}></div>
       </div>
       <div className={`absolute top-[60%] left-[15%] w-1 h-1 ${particleColor} rounded-full blur-[1px] animate-particle-1`}></div>
@@ -89,7 +89,7 @@ const SquidBackground = ({ wins }: { wins?: number }) => {
   const svgGlow = wins >= 3 ? "drop-shadow-[0_0_8px_rgba(251,191,36,0.4)] animate-pulse" : "";
 
   return (
-    <div className={`absolute inset-0 pointer-events-none z-0 transition-all duration-700 ${bgLayer} rounded-xl overflow-hidden`}>
+    <div className={`absolute inset-0 pointer-events-none z-0 transition-all duration-700 ${bgLayer} overflow-hidden`}>
       {effectLayer}
       <div className="absolute inset-0 w-full h-full mix-blend-screen flex items-center justify-center">
         <svg 
@@ -664,15 +664,26 @@ export function PureRanking() {
                     />
                  </div>
                  <div>
-                    <label className="text-[10px] font-mono uppercase tracking-widest text-[#666] mb-2 block block mt-4">锦标赛冠军次数 (鱿鱼特效)</label>
-                    <Input 
-                      type="number"
-                      min="0"
-                      value={editingTournamentWins}
-                      onChange={e => setEditingTournamentWins(parseInt(e.target.value) || 0)}
-                      placeholder="0"
-                      className="bg-[#181818] border-[#333] h-12 text-[#eee] focus-visible:ring-0 focus-visible:border-white transition-colors"
-                    />
+                    <label className="text-[10px] font-mono uppercase tracking-widest text-[#666] mb-2 block mt-4">锦标赛冠军次数</label>
+                    <div className="flex items-center gap-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setEditingTournamentWins(Math.max(0, editingTournamentWins - 1))}
+                        className="bg-[#181818] border-[#333] text-[#eee] hover:bg-[#333] hover:text-white"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                      <span className="text-xl font-mono w-8 text-center">{editingTournamentWins}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setEditingTournamentWins(editingTournamentWins + 1)}
+                        className="bg-[#181818] border-[#333] text-[#eee] hover:bg-[#333] hover:text-white"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
                  </div>
               </div>
               <div className="flex justify-end gap-6 mt-8 pt-6 border-t border-[#222]">
