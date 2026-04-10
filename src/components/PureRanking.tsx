@@ -31,66 +31,65 @@ export type PlayerProfile = {
 
 
 
+
 const SquidBackground = ({ wins }: { wins?: number }) => {
   if (!wins || wins < 1) return null;
 
-  let effectLayer = null;
-  let svgOpacity = "opacity-[0.03]";
+  let svgOpacity = "opacity-[0.05]";
   let svgColor = "text-white";
-  let bgLayer = "bg-transparent";
+  let bgLayer = "bg-[#ffffff]/[0.01]";
+  let particleColor = "bg-white/40";
+  let shimmerVia = "via-white/[0.03]";
 
   if (wins >= 3 && wins < 5) {
-    svgOpacity = "opacity-[0.05]";
+    svgOpacity = "opacity-[0.08]";
     svgColor = "text-purple-400";
     bgLayer = "bg-purple-900/5";
+    particleColor = "bg-purple-400/60";
+    shimmerVia = "via-purple-400/[0.04]";
   } else if (wins >= 5) {
     svgOpacity = "opacity-[0.12]";
     svgColor = "text-amber-400";
-    // Full width premium background replacement
     bgLayer = "bg-gradient-to-r from-amber-600/10 via-[#111] to-[#111] border border-amber-500/20 shadow-[inset_0_0_30px_rgba(251,191,36,0.05)]";
-    
-    effectLayer = (
-      <>
-        <style>{`
-          @keyframes shimmer-slide {
-            0% { transform: translateX(-150%) skewX(-15deg); }
-            100% { transform: translateX(200%) skewX(-15deg); }
-          }
-          .animate-shimmer-slide {
-            animation: shimmer-slide 4s infinite linear;
-          }
-          @keyframes float-up {
-            0% { transform: translateY(0px) scale(1); opacity: 0; }
-            50% { opacity: 1; }
-            100% { transform: translateY(-30px) scale(1.5); opacity: 0; }
-          }
-          .animate-particle-1 { animation: float-up 3s infinite 0.2s; }
-          .animate-particle-2 { animation: float-up 4s infinite 1.5s; }
-          .animate-particle-3 { animation: float-up 3.5s infinite 2.8s; }
-        `}</style>
-        {/* Golden Shimmer Stream */}
-        <div className="absolute inset-0 overflow-hidden rounded-xl">
-          <div className="absolute top-0 bottom-0 w-[200px] bg-gradient-to-r from-transparent via-amber-200/5 to-transparent animate-shimmer-slide"></div>
-        </div>
-        {/* Floating Particles */}
-        <div className="absolute top-[60%] left-[15%] w-1 h-1 bg-amber-300 rounded-full blur-[1px] animate-particle-1"></div>
-        <div className="absolute top-[80%] left-[30%] w-1.5 h-1.5 bg-amber-400 rounded-full blur-[2px] animate-particle-2"></div>
-        <div className="absolute top-[50%] right-[40%] w-2 h-2 bg-amber-200 rounded-full blur-[3px] animate-particle-3"></div>
-        <div className="absolute top-[70%] left-[5%] w-1 h-1 bg-amber-300 rounded-full blur-[1px] animate-particle-2" style={{ animationDuration: '5s' }}></div>
-      </>
-    );
-  } else {
-    // 1-2 wins
-    bgLayer = "bg-[#ffffff]/[0.01]";
+    particleColor = "bg-amber-300";
+    shimmerVia = "via-amber-200/5";
   }
+
+  const effectLayer = (
+    <>
+      <style>{`
+        @keyframes shimmer-slide {
+          0% { transform: translateX(-150%) skewX(-15deg); }
+          100% { transform: translateX(200%) skewX(-15deg); }
+        }
+        .animate-shimmer-slide {
+          animation: shimmer-slide 4s infinite linear;
+        }
+        @keyframes float-up {
+          0% { transform: translateY(0px) scale(1); opacity: 0; }
+          50% { opacity: 1; }
+          100% { transform: translateY(-30px) scale(1.5); opacity: 0; }
+        }
+        .animate-particle-1 { animation: float-up 3s infinite 0.2s; }
+        .animate-particle-2 { animation: float-up 4s infinite 1.5s; }
+        .animate-particle-3 { animation: float-up 3.5s infinite 2.8s; }
+      `}</style>
+      <div className="absolute inset-0 overflow-hidden rounded-xl">
+        <div className={`absolute top-0 bottom-0 w-[200px] bg-gradient-to-r from-transparent ${shimmerVia} to-transparent animate-shimmer-slide`}></div>
+      </div>
+      <div className={`absolute top-[60%] left-[15%] w-1 h-1 ${particleColor} rounded-full blur-[1px] animate-particle-1`}></div>
+      <div className={`absolute top-[80%] left-[30%] w-1.5 h-1.5 ${particleColor} rounded-full blur-[2px] animate-particle-2`}></div>
+      <div className={`absolute top-[50%] right-[40%] w-2 h-2 ${particleColor} rounded-full blur-[3px] animate-particle-3`}></div>
+      <div className={`absolute top-[70%] left-[5%] w-1 h-1 ${particleColor} rounded-full blur-[1px] animate-particle-2`} style={{ animationDuration: '5s' }}></div>
+    </>
+  );
 
   return (
     <div className={`absolute inset-0 pointer-events-none z-0 transition-all duration-700 ${bgLayer} rounded-xl overflow-hidden`}>
       {effectLayer}
-      {/* Giant Squid Watermark */}
       <div className={`absolute -right-[10%] md:-right-[5%] top-1/2 -translate-y-1/2 min-w-[300px] min-h-[300px] w-[50%] md:w-[40%] h-[150%] flex items-center justify-end mix-blend-screen`}>
         <svg 
-          className={`w-full h-full object-contain -rotate-12 ${svgColor} ${svgOpacity}`} 
+          className={`w-full h-full object-contain -rotate-90 ${svgColor} ${svgOpacity}`} 
           viewBox="0 0 100 100" 
           fill="none" 
           stroke="currentColor" 
@@ -105,7 +104,6 @@ const SquidBackground = ({ wins }: { wins?: number }) => {
           <circle cx="43" cy="55" r="2.5" fill="currentColor"/>
           <circle cx="57" cy="55" r="2.5" fill="currentColor"/>
           
-          {/* Complex Tentacles */}
           <path d="M40 70 Q25 90 20 110" strokeWidth="1"/>
           <path d="M45 73 Q40 95 35 115" strokeWidth="1.2"/>
           <path d="M50 75 Q50 100 50 120" strokeWidth="1.5"/>
