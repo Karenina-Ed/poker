@@ -30,43 +30,89 @@ export type PlayerProfile = {
 };
 
 
+
 const SquidBackground = ({ wins }: { wins?: number }) => {
   if (!wins || wins < 1) return null;
 
-  let colorClass = "text-white/5"; 
-  let scale = "scale-100";
-  let effectClass = "";
+  let effectLayer = null;
+  let svgOpacity = "opacity-[0.03]";
+  let svgColor = "text-white";
+  let bgLayer = "bg-transparent";
 
   if (wins >= 3 && wins < 5) {
-    colorClass = "text-purple-500/10"; 
-    scale = "scale-110";
+    svgOpacity = "opacity-[0.05]";
+    svgColor = "text-purple-400";
+    bgLayer = "bg-purple-900/5";
   } else if (wins >= 5) {
-    colorClass = "text-amber-400/20"; 
-    scale = "scale-125";
-    effectClass = "animate-pulse drop-shadow-[0_0_15px_rgba(251,191,36,0.2)]";
+    svgOpacity = "opacity-[0.12]";
+    svgColor = "text-amber-400";
+    // Full width premium background replacement
+    bgLayer = "bg-gradient-to-r from-amber-600/10 via-[#111] to-[#111] border border-amber-500/20 shadow-[inset_0_0_30px_rgba(251,191,36,0.05)]";
+    
+    effectLayer = (
+      <>
+        <style>{`
+          @keyframes shimmer-slide {
+            0% { transform: translateX(-150%) skewX(-15deg); }
+            100% { transform: translateX(200%) skewX(-15deg); }
+          }
+          .animate-shimmer-slide {
+            animation: shimmer-slide 4s infinite linear;
+          }
+          @keyframes float-up {
+            0% { transform: translateY(0px) scale(1); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(-30px) scale(1.5); opacity: 0; }
+          }
+          .animate-particle-1 { animation: float-up 3s infinite 0.2s; }
+          .animate-particle-2 { animation: float-up 4s infinite 1.5s; }
+          .animate-particle-3 { animation: float-up 3.5s infinite 2.8s; }
+        `}</style>
+        {/* Golden Shimmer Stream */}
+        <div className="absolute inset-0 overflow-hidden rounded-xl">
+          <div className="absolute top-0 bottom-0 w-[200px] bg-gradient-to-r from-transparent via-amber-200/5 to-transparent animate-shimmer-slide"></div>
+        </div>
+        {/* Floating Particles */}
+        <div className="absolute top-[60%] left-[15%] w-1 h-1 bg-amber-300 rounded-full blur-[1px] animate-particle-1"></div>
+        <div className="absolute top-[80%] left-[30%] w-1.5 h-1.5 bg-amber-400 rounded-full blur-[2px] animate-particle-2"></div>
+        <div className="absolute top-[50%] right-[40%] w-2 h-2 bg-amber-200 rounded-full blur-[3px] animate-particle-3"></div>
+        <div className="absolute top-[70%] left-[5%] w-1 h-1 bg-amber-300 rounded-full blur-[1px] animate-particle-2" style={{ animationDuration: '5s' }}></div>
+      </>
+    );
+  } else {
+    // 1-2 wins
+    bgLayer = "bg-[#ffffff]/[0.01]";
   }
 
   return (
-    <div className={`absolute right-[5%] md:right-[10%] top-1/2 -translate-y-1/2 pointer-events-none transition-all duration-700 ${scale} z-0`}>
-      <svg 
-        className={`w-24 h-24 md:w-40 md:h-40 -rotate-12 ${colorClass} ${effectClass}`} 
-        viewBox="0 0 100 100" 
-        fill="none" 
-        stroke="currentColor" 
-        strokeWidth="2" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-      >
-        <path d="M50 10 Q40 25 40 45 Q40 55 50 60 Q60 55 60 45 Q60 25 50 10 Z" />
-        <path d="M42 25 L25 35 L40 40" />
-        <path d="M58 25 L75 35 L60 40" />
-        <circle cx="45" cy="50" r="2" fill="currentColor"/>
-        <circle cx="55" cy="50" r="2" fill="currentColor"/>
-        <path d="M42 58 Q35 75 30 90" />
-        <path d="M47 60 Q45 80 42 95" />
-        <path d="M53 60 Q55 80 58 95" />
-        <path d="M58 58 Q65 75 70 90" />
-      </svg>
+    <div className={`absolute inset-0 pointer-events-none z-0 transition-all duration-700 ${bgLayer} rounded-xl overflow-hidden`}>
+      {effectLayer}
+      {/* Giant Squid Watermark */}
+      <div className={`absolute -right-[10%] md:-right-[5%] top-1/2 -translate-y-1/2 min-w-[300px] min-h-[300px] w-[50%] md:w-[40%] h-[150%] flex items-center justify-end mix-blend-screen`}>
+        <svg 
+          className={`w-full h-full object-contain -rotate-12 ${svgColor} ${svgOpacity}`} 
+          viewBox="0 0 100 100" 
+          fill="none" 
+          stroke="currentColor" 
+          strokeWidth="1.5" 
+          strokeLinecap="round" 
+          strokeLinejoin="round"
+          preserveAspectRatio="xMidYMid meet"
+        >
+          <path d="M50 5 Q35 25 35 50 Q35 65 50 75 Q65 65 65 50 Q65 25 50 5 Z" fill="currentColor" fillOpacity="0.1"/>
+          <path d="M40 25 L15 35 L35 45" />
+          <path d="M60 25 L85 35 L65 45" />
+          <circle cx="43" cy="55" r="2.5" fill="currentColor"/>
+          <circle cx="57" cy="55" r="2.5" fill="currentColor"/>
+          
+          {/* Complex Tentacles */}
+          <path d="M40 70 Q25 90 20 110" strokeWidth="1"/>
+          <path d="M45 73 Q40 95 35 115" strokeWidth="1.2"/>
+          <path d="M50 75 Q50 100 50 120" strokeWidth="1.5"/>
+          <path d="M55 73 Q60 95 65 115" strokeWidth="1.2"/>
+          <path d="M60 70 Q75 90 80 110" strokeWidth="1"/>
+        </svg>
+      </div>
     </div>
   );
 };
@@ -198,7 +244,7 @@ export function PureRanking() {
       setProfiles(newProfiles);
       setIsOpen(false);
       setIsProfileOpen(false);
-      toast.success('数据已更新并上线');
+      toast.success('数据已更新');
     } catch (err: any) {
       console.error(err);
       setErrorText(err.message || '保存失败');
